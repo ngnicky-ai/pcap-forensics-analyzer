@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>PcapForensics.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.Text" />
+    <Using Include="PcapForensics.Core.Model" />
+    <Using Include="PcapForensics.Core.Util" />
+  </ItemGroup>
+
+  <!-- 탐지 규칙: 기본값은 어셈블리에 포함하고, 실행 폴더의 rules\*.json 이 있으면 그것을 우선 사용 -->
+  <ItemGroup>
+    <None Remove="Rules\*.json" />
+    <EmbeddedResource Include="Rules\*.json" LogicalName="PcapForensics.Core.Rules.%(Filename)%(Extension)" />
+    <Content Include="Rules\*.json" CopyToOutputDirectory="PreserveNewest" TargetPath="rules\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,53 @@
+{
+  // 포트 스캔: 한 출발지가 시간 구간 내에 접근한 서로 다른 포트/호스트 수
+  "PortScanMinPorts": 15,
+  "PortScanMinHosts": 15,
+  "PortScanWindowSeconds": 300,
+
+  // 무차별 대입: 인증 실패 횟수 / 인증 서비스 반복 연결 수
+  "BruteForceMinFailures": 5,
+  "BruteForceMinConnections": 15,
+  "BruteForceWindowSeconds": 300,
+  "AuthServicePorts": [ 21, 22, 23, 25, 110, 143, 445, 1433, 3306, 3389, 5432, 5900 ],
+  "HttpLoginMinRequests": 10,
+
+  // DNS 터널링 / DGA
+  "DnsTunnelMinUniqueSubdomains": 20,
+  "DnsTunnelMinAvgLength": 25,
+  "DnsTunnelMinEntropy": 3.8,
+  "DnsNxDomainThreshold": 10,
+  "DnsAllowList": [
+    "in-addr.arpa", "ip6.arpa", "local", "akamaiedge.net", "akadns.net", "edgekey.net", "edgesuite.net",
+    "cloudfront.net", "amazonaws.com", "googlevideo.com", "1e100.net", "gstatic.com", "googleusercontent.com",
+    "windowsupdate.com", "microsoft.com", "msedge.net", "trafficmanager.net", "azureedge.net", "apple.com",
+    "icloud.com", "fbcdn.net", "spotify.com", "kakao.com", "naver.net", "daumcdn.net"
+  ],
+
+  // 비컨(주기적 C2 통신)
+  "BeaconMinConnections": 6,
+  "BeaconMinIntervalSeconds": 5,
+  "BeaconMaxJitterRatio": 0.2,
+  "BeaconMinRegularFraction": 0.8,
+  "BeaconIgnorePorts": [ 53, 123, 137, 138, 1900, 5353, 5355 ],
+
+  // 악성 페이로드
+  "HighEntropyThreshold": 7.5,
+  "HighEntropyMinBytes": 10240,
+  "ExploitChainWindowSeconds": 120,
+
+  // Suricata 연동 (설치된 경우 [Suricata 검사], 다른 장비의 결과는 [eve.json 가져오기])
+  "Suricata": {
+    "ExecutablePath": "",          // 비우면 PATH / C:\Program Files\Suricata 에서 자동 탐색
+    "ConfigPath": "",              // 비우면 실행 파일 옆 suricata.yaml
+    "RulesPath": "",               // .rules 파일 또는 폴더. 비우면 [ET Open 룰 받기]로 받은 룰, 그것도 없으면 suricata.yaml 설정
+    "EtOpenUrl": "https://rules.emergingthreats.net/open/suricata-7.0.3/emerging.rules.tar.gz",
+    "HomeNet": "[10.0.0.0/8,172.16.0.0/12,192.168.0.0/16]",
+    "ExtraArguments": "",
+    "TimeoutSeconds": 900,
+    "AutoRun": false,              // true 면 PCAP 분석 직후 자동 실행
+    "SeverityMap": { "1": "High", "2": "Medium", "3": "Low", "4": "Info" },
+    "EscalateKeywords": [ "EXPLOIT_KIT", "MALWARE", "TROJAN", "CnC", "Ransomware", "WebShell", "Web Shell" ],
+    "IgnoreSids": [],
+    "IgnoreSignaturePrefixes": [ "SURICATA STREAM", "SURICATA TCPv4 invalid checksum", "SURICATA UDPv4 invalid checksum" ]
+  }
+}

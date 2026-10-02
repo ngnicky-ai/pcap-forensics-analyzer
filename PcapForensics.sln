@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{08AC6927-68DD-425F-BF15-570C528FB81B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PcapForensics.Core", "src\PcapForensics.Core\PcapForensics.Core.csproj", "{412B3028-9E94-4C78-AC2D-16BA908185A1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PcapForensics.Cli", "src\PcapForensics.Cli\PcapForensics.Cli.csproj", "{465C1FAF-D538-4FD2-9B48-E1301EC9F871}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PcapForensics.App", "src\PcapForensics.App\PcapForensics.App.csproj", "{D61D73A4-33FC-45A5-83CE-B575BBD8C35C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{389A696D-8769-4F79-AB61-CBB81BB16C9A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PcapForensics.Tests", "tests\PcapForensics.Tests\PcapForensics.Tests.csproj", "{40CE1CAB-0DD0-4053-9B7A-AE71A185BEA5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{412B3028-9E94-4C78-AC2D-16BA908185A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{412B3028-9E94-4C78-AC2D-16BA908185A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{412B3028-9E94-4C78-AC2D-16BA908185A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{412B3028-9E94-4C78-AC2D-16BA908185A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{465C1FAF-D538-4FD2-9B48-E1301EC9F871}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{465C1FAF-D538-4FD2-9B48-E1301EC9F871}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{465C1FAF-D538-4FD2-9B48-E1301EC9F871}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{465C1FAF-D538-4FD2-9B48-E1301EC9F871}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D61D73A4-33FC-45A5-83CE-B575BBD8C35C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D61D73A4-33FC-45A5-83CE-B575BBD8C35C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D61D73A4-33FC-45A5-83CE-B575BBD8C35C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D61D73A4-33FC-45A5-83CE-B575BBD8C35C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{40CE1CAB-0DD0-4053-9B7A-AE71A185BEA5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{40CE1CAB-0DD0-4053-9B7A-AE71A185BEA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{40CE1CAB-0DD0-4053-9B7A-AE71A185BEA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{40CE1CAB-0DD0-4053-9B7A-AE71A185BEA5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{412B3028-9E94-4C78-AC2D-16BA908185A1} = {08AC6927-68DD-425F-BF15-570C528FB81B}
+		{465C1FAF-D538-4FD2-9B48-E1301EC9F871} = {08AC6927-68DD-425F-BF15-570C528FB81B}
+		{D61D73A4-33FC-45A5-83CE-B575BBD8C35C} = {08AC6927-68DD-425F-BF15-570C528FB81B}
+		{40CE1CAB-0DD0-4053-9B7A-AE71A185BEA5} = {389A696D-8769-4F79-AB61-CBB81BB16C9A}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,12 @@
+bin/
+obj/
+publish/
+dist/
+.vs/
+.vscode/
+*.user
+TestResults/
+
+# 저장소에는 samples/2015-08-31-traffic-analysis-exercise.pcap 만 포함
+samples/*
+!samples/2015-08-31-traffic-analysis-exercise.pcap

@@ -1,0 +1,13 @@
+# IOC 목록 예시 — [IOC 불러오기] 또는 CLI --ioc 옵션으로 사용
+# 한 줄에 하나: IP, CIDR 대역, 도메인, URL, MD5/SHA1/SHA256 해시
+# 값 뒤에 '#' 또는 ',' 로 설명을 붙일 수 있고, 무력화 표기(hxxp, [.])도 인식합니다.
+# 도메인은 하위 도메인까지 일치로 판단합니다. (example.com → a.b.example.com 도 일치)
+#
+# 아래 값은 형식 예시(문서용 예약 주소/도메인)이므로 실제 위협 정보로 교체해 사용하십시오.
+
+203.0.113.10            # 예시: C2 서버
+198.51.100.0/24         # 예시: 악성 호스팅 대역
+malicious-example[.]com # 예시: 피싱 도메인
+hxxp://bad.example.net/payload.exe
+44d88612fea8a8f36de82e1278abb02f, EICAR 테스트 파일 MD5
+275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f, EICAR 테스트 파일 SHA256

@@ -1,0 +1,138 @@
+{
+  // 요청 규칙: URL 디코딩된 URI + 요청 헤더 값 + 요청 본문에 적용 (대소문자 무시 정규식)
+  "RequestRules": [
+    {
+      "Name": "SQL 인젝션",
+      "Severity": "High",
+      "Mitre": "T1190 Exploit Public-Facing Application",
+      "Recommendation": "대상 웹 애플리케이션의 DB 쿼리 로그와 응답 내용을 확인하고, 파라미터 바인딩(Prepared Statement) 적용 여부를 점검하십시오.",
+      "Patterns": [
+        "union(\\s|/\\*.*?\\*/|\\+)+(all(\\s|\\+)+)?select",
+        "'\\s*(or|and)\\s+'?\\d+'?\\s*=\\s*'?\\d+",
+        "\\b(sleep|benchmark|pg_sleep)\\s*\\(\\s*\\d",
+        "waitfor\\s+delay\\s+'",
+        "information_schema\\.|sysobjects|xp_cmdshell|load_file\\s*\\(|into\\s+(out|dump)file",
+        "\\b(extractvalue|updatexml|group_concat)\\s*\\(",
+        "'\\s*;\\s*(drop|insert|update|delete|exec)\\s"
+      ]
+    },
+    {
+      "Name": "크로스 사이트 스크립팅(XSS)",
+      "Severity": "Medium",
+      "Mitre": "T1189 Drive-by Compromise",
+      "Recommendation": "출력 인코딩과 입력값 검증을 확인하고, 저장형 XSS 여부를 위해 게시물/DB 저장 데이터를 점검하십시오.",
+      "Patterns": [
+        "<script[\\s>]",
+        "javascript:",
+        "\\bon(error|load|mouseover|focus|click)\\s*=",
+        "document\\.(cookie|location|write)",
+        "<(iframe|svg|img|body)[^>]*(src|onload)\\s*="
+      ]
+    },
+    {
+      "Name": "경로 탐색 / 로컬 파일 포함",
+      "Severity": "High",
+      "Mitre": "T1190 Exploit Public-Facing Application",
+      "Recommendation": "웹 서버 접근 로그에서 동일 출발지의 다른 요청을 확인하고, 응답에 시스템 파일 내용이 포함되었는지 검토하십시오.",
+      "Patterns": [
+        "(\\.\\./|\\.\\.\\\\){2,}",
+        "/etc/(passwd|shadow|hosts|issue)",
+        "(boot|win)\\.ini",
+        "/proc/self/(environ|cmdline)",
+        "php://(input|filter)",
+        "(file|expect|data)://"
+      ]
+    },
+    {
+      "Name": "명령어 삽입",
+      "Severity": "High",
+      "Mitre": "T1059 Command and Scripting Interpreter",
+      "Recommendation": "서버에서 생성된 프로세스와 웹 서버 계정의 명령 실행 이력을 확인하십시오.",
+      "Patterns": [
+        "[;|&`]\\s*(cat|ls|id|whoami|uname|wget|curl|nc|ncat|bash|sh|powershell|cmd(\\.exe)?|ping|nslookup|certutil)\\b",
+        "\\$\\((whoami|id|uname|cat|curl|wget)",
+        "/bin/(ba)?sh\\b",
+        "cmd\\.exe\\s*/c"
+      ]
+    },
+    {
+      "Name": "웹셸 접근 의심",
+      "Severity": "High",
+      "Mitre": "T1505.003 Web Shell",
+      "Recommendation": "요청된 스크립트 파일을 웹 루트에서 찾아 생성 시각과 내용을 확인하고, 업로드 경로를 추적하십시오.",
+      "Patterns": [
+        "\\.(php|jsp|jspx|asp|aspx|ashx)\\?(cmd|exec|command|execute|c)=",
+        "\\b(eval|assert|passthru|shell_exec|system)\\s*\\(\\s*(\\$_(GET|POST|REQUEST)|base64_decode)",
+        "base64_decode\\s*\\("
+      ]
+    },
+    {
+      "Name": "Log4Shell / JNDI 인젝션",
+      "Severity": "Critical",
+      "Mitre": "T1190 Exploit Public-Facing Application",
+      "Recommendation": "Log4j 버전을 확인하고, 이후 LDAP/RMI 아웃바운드 연결과 추가 다운로드 여부를 조사하십시오.",
+      "Patterns": [ "\\$\\{jndi:", "\\$\\{(lower|upper|env|sys|::-j)" ]
+    },
+    {
+      "Name": "Shellshock",
+      "Severity": "Critical",
+      "Mitre": "T1190 Exploit Public-Facing Application",
+      "Recommendation": "CGI 스크립트를 사용하는 서버의 Bash 패치 여부와 이후 실행된 명령을 확인하십시오.",
+      "Patterns": [ "\\(\\)\\s*\\{\\s*:?\\s*;\\s*\\}\\s*;" ]
+    }
+  ],
+
+  // 응답 규칙: 텍스트 응답 본문(최대 64KB)에 적용 — 공격 성공/정보 노출 징후
+  "ResponseRules": [
+    {
+      "Name": "시스템 계정 파일 노출(/etc/passwd)",
+      "Severity": "Critical",
+      "Mitre": "T1005 Data from Local System",
+      "Recommendation": "경로 탐색 공격이 성공한 것으로 보입니다. 취약 파라미터를 즉시 차단하고 노출된 정보 범위를 확인하십시오.",
+      "Patterns": [ "root:[^:\\r\\n]*:0:0:" ]
+    },
+    {
+      "Name": "Windows 시스템 파일 노출(win.ini)",
+      "Severity": "Critical",
+      "Mitre": "T1005 Data from Local System",
+      "Recommendation": "경로 탐색 공격이 성공한 것으로 보입니다. 취약 파라미터를 즉시 차단하십시오.",
+      "Patterns": [ "\\[(fonts|extensions|mci extensions)\\]\\s*[\\r\\n]" ]
+    },
+    {
+      "Name": "명령 실행 결과 노출",
+      "Severity": "Critical",
+      "Mitre": "T1059 Command and Scripting Interpreter",
+      "Recommendation": "명령어 삽입 또는 웹셸 실행이 성공한 것으로 보입니다. 서버를 격리하고 침해 범위를 조사하십시오.",
+      "Patterns": [ "uid=\\d+\\([^)]*\\)\\s+gid=\\d+", "nt authority\\\\(system|network service)" ]
+    },
+    {
+      "Name": "SQL 오류 메시지 노출",
+      "Severity": "Medium",
+      "Mitre": "T1190 Exploit Public-Facing Application",
+      "Recommendation": "SQL 인젝션 취약점이 존재할 수 있습니다. 오류 메시지 노출을 차단하고 해당 파라미터를 점검하십시오.",
+      "Patterns": [
+        "You have an error in your SQL syntax",
+        "mysql_fetch_(array|assoc|row)",
+        "ORA-\\d{5}",
+        "Unclosed quotation mark after the character string",
+        "SQLSTATE\\[",
+        "Microsoft OLE DB Provider for SQL Server",
+        "PostgreSQL.{0,40}ERROR"
+      ]
+    },
+    {
+      "Name": "디렉터리 리스팅 노출",
+      "Severity": "Low",
+      "Mitre": "T1083 File and Directory Discovery",
+      "Recommendation": "웹 서버의 디렉터리 인덱싱 설정을 비활성화하십시오.",
+      "Patterns": [ "<title>Index of /" ]
+    }
+  ],
+
+  // User-Agent 에 포함되면 '취약점 스캐너 사용'으로 판단
+  "ScannerUserAgents": [
+    "sqlmap", "nikto", "nmap", "masscan", "zgrab", "acunetix", "netsparker", "dirbuster", "gobuster", "wfuzz",
+    "ffuf", "wpscan", "nessus", "openvas", "nuclei", "whatweb", "arachni", "w3af", "skipfish", "havij", "zmeu",
+    "jaeles", "hydra", "commix", "joomscan", "fimap", "burpcollaborator"
+  ]
+}

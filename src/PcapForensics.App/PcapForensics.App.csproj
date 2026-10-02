@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>PcapForensics</AssemblyName>
+    <RootNamespace>PcapForensics.App</RootNamespace>
+    <Product>PCAP 침해사고 분석기</Product>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PcapForensics.Core\PcapForensics.Core.csproj" />
+  </ItemGroup>
+
+</Project>
