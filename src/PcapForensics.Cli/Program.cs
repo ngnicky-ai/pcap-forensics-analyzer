@@ -1,5 +1,6 @@
 using System.Text;
 using PcapForensics.Core.Analysis;
+using PcapForensics.Core.Capture;
 using PcapForensics.Core.Detection;
 using PcapForensics.Core.Model;
 using PcapForensics.Core.Reporting;
@@ -7,9 +8,9 @@ using PcapForensics.Core.Util;
 
 Console.OutputEncoding = Encoding.UTF8;
 
-string? pcap = null, ioc = null, html = null, csv = null, extract = null, eve = null;
-bool verbose = false, suricata = false, updateRules = false;
-int? sessionId = null;
+string? pcap = null, ioc = null, html = null, csv = null, extract = null, eve = null, captureOut = null, ifaceSel = null;
+bool verbose = false, suricata = false, updateRules = false, listIfaces = false, capture = false;
+int? sessionId = null, durationSec = null, maxMb = null;
 for (int i = 0; i < args.Length; i++)
 {
     string Next() => i + 1 < args.Length ? args[++i] : throw new ArgumentException($"{args[i]} 옵션에 값이 필요합니다.");
@@ -22,6 +23,12 @@ for (int i = 0; i < args.Length; i++)
         case "--eve": eve = Next(); break;
         case "--suricata": suricata = true; break;
         case "--update-rules": updateRules = true; break;
+        case "--list-interfaces": listIfaces = true; break;
+        case "--capture": capture = true; break;
+        case "--duration": durationSec = int.Parse(Next()); break;
+        case "--max-mb": maxMb = int.Parse(Next()); break;
+        case "--iface": ifaceSel = Next(); break;
+        case "--out": captureOut = Next(); break;
         case "-v": case "--verbose": verbose = true; break;
         case "--session": sessionId = int.Parse(Next()); break;
         case "-h": case "--help": pcap = null; i = args.Length; break;
@@ -42,7 +49,67 @@ if (updateRules)
         Console.Error.WriteLine($"룰 다운로드 실패: {ex.Message}");
         return 1;
     }
-    if (pcap is null) return 0;
+    if (pcap is null && !capture && !listIfaces) return 0;
+}
+
+if (listIfaces || capture)
+{
+    if (!CaptureDevices.IsAvailable(out var capErr)) { Console.Error.WriteLine(capErr); return 1; }
+    var devices = CaptureDevices.List();
+    if (listIfaces)
+    {
+        Console.WriteLine(CaptureDevices.LibraryVersion());
+        for (int i = 0; i < devices.Count; i++)
+        {
+            var d = devices[i];
+            Console.WriteLine($"  [{i + 1,2}] {d.Kind,-8} {d.Status,-6} {d.DisplayName}");
+            Console.WriteLine($"       {d.Description}  {d.AddressText}");
+        }
+        if (!capture) return 0;
+    }
+
+    var cs = RuleLoader.LoadSettings().Capture;
+    var selected = ifaceSel is null
+        ? devices
+        : ifaceSel.Split(',').Select(s => devices[int.Parse(s.Trim()) - 1]).ToList();
+    var opt = new CaptureOptions
+    {
+        Devices = selected,
+        Promiscuous = cs.Promiscuous,
+        SnapLength = cs.SnapLength,
+        MaxBytes = (long)(maxMb ?? cs.MaxSizeMB) * 1024 * 1024,
+        MaxDuration = durationSec is int sec ? TimeSpan.FromSeconds(sec) : TimeSpan.FromMinutes(cs.MaxDurationMinutes),
+        OutputPath = captureOut ?? cs.NewCapturePath(),
+    };
+
+    using var live = new LiveCapture(opt);
+    var done = new ManualResetEventSlim();
+    live.LimitReached += _ => done.Set();
+    Console.CancelKeyPress += (_, e) => { e.Cancel = true; done.Set(); };
+    try { live.Start(); }
+    catch (InvalidOperationException ex) { Console.Error.WriteLine(ex.Message); return 1; }
+
+    Console.WriteLine($"실시간 캡처 시작: 인터페이스 {live.Interfaces.Count}개 → {opt.OutputPath}");
+    foreach (var e in live.OpenErrors) Console.WriteLine($"  [참고] {e}");
+    Console.WriteLine($"  제한: {TimeFormat.Bytes(opt.MaxBytes)} / {TimeFormat.Duration(opt.MaxDuration)}  (Ctrl+C 로 중지)");
+    bool warned = false;
+    while (!done.Wait(1000))
+    {
+        double ratio = Math.Max(opt.MaxBytes > 0 ? (double)live.FileBytes / opt.MaxBytes : 0,
+                                opt.MaxDuration > TimeSpan.Zero ? live.Elapsed / opt.MaxDuration : 0);
+        Console.Write($"\r  {TimeFormat.Duration(live.Elapsed),-10} 패킷 {live.Packets,8:N0}  파일 {TimeFormat.Bytes(live.FileBytes),10}  제한 {ratio,4:P0}   ");
+        if (!warned && ratio >= cs.WarnRatio)
+        {
+            warned = true;
+            Console.WriteLine($"\n  [경고] 제한의 {ratio:P0}에 도달했습니다. 곧 자동으로 중지하고 분석합니다.");
+        }
+    }
+    live.Stop();
+    Console.WriteLine($"\n{live.StopReason} 패킷 {live.Packets:N0}개, {TimeFormat.Bytes(live.FileBytes)}");
+    foreach (var c in live.Interfaces.Where(c => c.Packets > 0 || c.Dropped > 0 || c.Error.Length > 0))
+        Console.WriteLine($"  {c.Device.DisplayName}: {c.Packets:N0}개, 손실 {c.Dropped:N0}{(c.Error.Length > 0 ? ", 오류 " + c.Error : "")}");
+    if (live.Packets == 0) { Console.WriteLine("캡처된 패킷이 없어 분석하지 않습니다."); return 0; }
+    pcap = opt.OutputPath;
 }
 
 if (pcap is null)
@@ -60,6 +127,12 @@ if (pcap is null)
           --suricata          설치된 Suricata 로 검사해 경보를 합침 (rules\settings.json 의 Suricata 설정 사용)
           --eve <eve.json>    다른 장비에서 만든 Suricata eve.json 경보를 합침
           --update-rules      ET Open 룰셋을 내려받음 (PCAP 없이 단독 실행 가능)
+
+        실시간 모니터링 (Npcap 필요): pcapir --capture [옵션]  → 중지(Ctrl+C) 또는 제한 도달 시 자동 분석
+          --list-interfaces   캡처 가능한 인터페이스 목록
+          --iface <번호,..>   캡처할 인터페이스(목록 번호). 생략하면 전체
+          --duration <초>     시간 제한 / --max-mb <MB> 용량 제한 (기본값: settings.json 의 Capture)
+          --out <파일>        저장할 pcapng 경로
 
         종료 코드: 0 = 심각/높음 탐지 없음, 2 = 심각/높음 탐지 있음, 1 = 오류
         """);

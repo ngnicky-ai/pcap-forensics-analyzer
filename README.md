@@ -11,13 +11,14 @@ WPF GUI와 명령줄(CLI)을 제공하며, 자체 탐지 엔진에 **Suricata(ET
 
 ## 다운로드
 
-[**Releases**](https://github.com/ngnicky-ai/pcap-forensics-analyzer/releases/latest)에서 `PcapForensics-v1.0.0-win-x64.zip`을 받아 압축을 풀고 `PcapForensics.exe`를 실행합니다.
+[**Releases**](https://github.com/ngnicky-ai/pcap-forensics-analyzer/releases/latest)에서 `PcapForensics-v1.1.0-win-x64.zip`을 받아 압축을 풀고 `PcapForensics.exe`를 실행합니다.
 .NET 런타임을 따로 설치할 필요가 없습니다(Windows x64, self-contained).
 
 | 파일 | 설명 |
 |---|---|
 | `PcapForensics.exe` | GUI. 파일을 열거나 창에 끌어다 놓으면 분석 |
 | `pcapir.exe` | CLI. 일괄 분석·자동화용 |
+| (선택) [Npcap](https://npcap.com) | 실시간 모니터링에 필요. 파일 분석만 할 때는 없어도 됩니다 |
 | `rules\` | 탐지 임계값(`settings.json`), 웹 공격 시그니처(`web_attack_rules.json`) |
 
 ## 실습: 익스플로잇 킷 → 랜섬웨어 감염 분석
@@ -81,6 +82,20 @@ HTTP/FTP로 전송된 파일 212개를 추출해 실제 형식(매직 바이트)
 피해 호스트 `192.168.137.239`는 격리 및 포렌식 대상이며, 46.108.156.181(EK)과 72.55.148.19(C2)를 차단해야 합니다.
 **HTML 보고서** 버튼으로 이 내용을 보고서 한 장으로 저장할 수 있습니다.
 
+## 실시간 모니터링
+
+**● 실시간 모니터링** 버튼으로 이 PC의 네트워크를 직접 캡처해 분석합니다. [Npcap](https://npcap.com)이 필요합니다(Wireshark를 설치했다면 이미 있습니다).
+
+1. 캡처할 인터페이스를 고릅니다. 실제 어댑터(유선·무선), 가상 어댑터(VMware·Hyper-V·WSL 등), 루프백(이 PC 내부 통신)이 모두 표시되며 기본으로 전부 선택됩니다.
+2. **최대 용량(MB)**과 **최대 시간(분)**을 정합니다. 이 PC의 가용 메모리로 분석 가능한 권장 최대 용량을 계산해 보여 주고, 넘으면 경고합니다(분석 메모리 ≈ 80MB + 캡처 크기 × 3, 실측).
+3. **모니터링 시작** → 인터페이스별 수신량, 초당 전송량, 최근 패킷이 실시간으로 갱신됩니다.
+4. 제한의 80%에 도달하면 남은 시간과 함께 경고하고, 100%에 도달하면 자동으로 멈춥니다. **중지하고 분석**을 누르거나 제한에 도달하면 저장된 파일을 바로 분석합니다.
+
+- 모든 인터페이스를 하나의 **pcapng** 파일(인터페이스별 링크 타입 보존)로 `%LocalAppData%\PcapForensics\captures`에 저장하므로, 원본 증거로 보관하거나 Wireshark에서 열 수 있습니다.
+- 무차별(promiscuous) 모드를 기본으로 사용하며, 지원하지 않는 어댑터는 일반 모드로 자동 전환합니다.
+- 가상 스위치·브리지 때문에 같은 패킷이 두 인터페이스에서 잡히면 분석 시 중복으로 제외하고 경고합니다.
+- CLI: `pcapir --list-interfaces`, `pcapir --capture --duration 60 --max-mb 200 [--iface 1,3] [--out 파일]` (Ctrl+C로 중지 후 자동 분석)
+
 ## 탐지 항목
 
 | 분류 | 내용 | MITRE ATT&CK |
@@ -138,14 +153,14 @@ dotnet test
 
 ```
 src/
-  PcapForensics.Core/   분석 엔진: Pcap · Decoding · Sessions · Protocols · Detection · Ids · Analysis · Reporting · Rules
+  PcapForensics.Core/   분석 엔진: Pcap · Capture · Decoding · Sessions · Protocols · Detection · Ids · Analysis · Reporting · Rules
   PcapForensics.App/    WPF GUI
   PcapForensics.Cli/    명령줄 도구 (pcapir)
 tests/
-  PcapForensics.Tests/  xUnit 44개
+  PcapForensics.Tests/  xUnit 47개
 ```
 
-- **단위 테스트**: pcap/pcapng 리더(엔디언·나노초·잘린 파일), 디코더(VLAN·IPv6·ARP·패딩), TCP 재조립(순서 뒤바뀜·재전송·겹침), DNS(압축 포인터·루프), HTTP(chunked+gzip·HEAD·100 Continue), FTP/SMTP 인증, IOC, 파일 형식, eve.json, Suricata 인수
+- **단위 테스트**: pcap/pcapng 리더(엔디언·나노초·잘린 파일), 디코더(VLAN·IPv6·ARP·패딩), TCP 재조립(순서 뒤바뀜·재전송·겹침), DNS(압축 포인터·루프), HTTP(chunked+gzip·HEAD·100 Continue), FTP/SMTP 인증, IOC, 파일 형식, eve.json, Suricata 인수, pcapng 작성·인터페이스 간 중복 제거
 - **회귀 테스트**: 샘플 캡처별 탐지 결과 고정(과거 오탐 재발 방지 포함). 저장소에 없는 샘플(FTP 무차별 대입, Tomcat 웹셸)과 Suricata 미설치 환경의 테스트는 자동으로 건너뜁니다.
 
 ## 참고

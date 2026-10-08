@@ -41,6 +41,16 @@ public partial class MainWindow : Window
             await _vm.OpenFileAsync(files[0]);
     }
 
+    // ---------- 실시간 모니터링 ----------
+
+    async void Monitor_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm.IsBusy) return;
+        var window = new CaptureWindow(_vm.CaptureSettings, _zoom) { Owner = this };
+        window.ShowDialog();
+        if (window.CapturedFile is { } path && File.Exists(path)) await _vm.OpenFileAsync(path, window.CaptureNote);
+    }
+
     // ---------- 확대/축소 ----------
 
     void Window_PreviewMouseWheel(object sender, MouseWheelEventArgs e)

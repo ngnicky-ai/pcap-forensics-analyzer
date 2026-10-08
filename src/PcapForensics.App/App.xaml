@@ -16,6 +16,7 @@
 
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis"/>
+        <conv:InverseBoolConverter x:Key="InverseBool"/>
         <conv:SeverityBrushConverter x:Key="SeverityBrush"/>
         <conv:NullToCollapsedConverter x:Key="NullToCollapsed"/>
         <conv:JoinLinesConverter x:Key="JoinLines"/>

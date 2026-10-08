@@ -35,6 +35,16 @@
   "HighEntropyMinBytes": 10240,
   "ExploitChainWindowSeconds": 120,
 
+  // 실시간 모니터링 (Npcap 필요). 제한의 WarnRatio(80%)에서 경고, 100%에서 자동 중지 후 분석
+  "Capture": {
+    "MaxSizeMB": 200,              // 분석에는 파일 크기의 수 배 메모리가 필요
+    "MaxDurationMinutes": 30,      // 0 이면 시간 제한 없음
+    "WarnRatio": 0.8,
+    "Promiscuous": true,           // 무차별 모드 (지원하지 않는 어댑터는 일반 모드로 자동 전환)
+    "SnapLength": 65535,
+    "OutputDirectory": ""          // 비우면 %LocalAppData%\PcapForensics\captures
+  },
+
   // Suricata 연동 (설치된 경우 [Suricata 검사], 다른 장비의 결과는 [eve.json 가져오기])
   "Suricata": {
     "ExecutablePath": "",          // 비우면 PATH / C:\Program Files\Suricata 에서 자동 탐색

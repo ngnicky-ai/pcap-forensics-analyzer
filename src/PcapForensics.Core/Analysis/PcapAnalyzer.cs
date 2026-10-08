@@ -66,7 +66,9 @@ public sealed class PcapAnalyzer
 
         var tracker = new SessionTracker();
         var seen = new HashSet<(long Ticks, Guid Digest)>();
-        int duplicates = 0;
+        // 여러 인터페이스 동시 캡처: 가상 스위치/브리지가 같은 패킷을 두 어댑터로 전달하는 경우를 걸러 낸다
+        var lastByPayload = new Dictionary<Guid, (long Ticks, int Interface)>();
+        int duplicates = 0, crossInterface = 0;
         using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 20))
         {
             int n = 0;
@@ -74,11 +76,24 @@ public sealed class PcapAnalyzer
             {
                 var p = PacketDecoder.Decode(frame);
                 result.Packets.Add(p);
-                if (!seen.Add((frame.Timestamp.Ticks, new Guid(MD5.HashData(frame.Data)))))
+                bool duplicate = !seen.Add((frame.Timestamp.Ticks, new Guid(MD5.HashData(frame.Data))));
+                if (duplicate) duplicates++;
+                else
+                {
+                    var payload = new Guid(MD5.HashData(frame.Data.AsSpan(Math.Min(frame.Data.Length, LinkHeaderLength(frame.LinkType)))));
+                    if (lastByPayload.TryGetValue(payload, out var prev) && prev.Interface != frame.InterfaceId
+                        && Math.Abs(frame.Timestamp.Ticks - prev.Ticks) <= 100 * TimeSpan.TicksPerMillisecond)
+                    {
+                        duplicate = true;
+                        crossInterface++;
+                    }
+                    else lastByPayload[payload] = (frame.Timestamp.Ticks, frame.InterfaceId);
+                }
+
+                if (duplicate)
                 {
                     p.IsDuplicate = true;
                     p.Info = "[중복 프레임] " + p.Info;
-                    duplicates++;
                 }
                 else tracker.Add(p);
                 if (++n % 5000 == 0)
@@ -91,6 +106,8 @@ public sealed class PcapAnalyzer
 
         if (duplicates > 0)
             result.Warnings.Add($"시각과 내용이 완전히 같은 중복 프레임 {duplicates:N0}개를 세션 분석에서 제외했습니다. (캡처 파일 병합 또는 중복 미러링 가능성)");
+        if (crossInterface > 0)
+            result.Warnings.Add($"여러 인터페이스에서 같은 패킷이 중복 캡처된 {crossInterface:N0}개를 세션 분석에서 제외했습니다. (가상 스위치/브리지 구성)");
 
         progress?.Report(new("TCP 스트림 재조립 중", 55));
         result.Sessions = tracker.Complete();
@@ -117,6 +134,16 @@ public sealed class PcapAnalyzer
         progress?.Report(new("완료", 100));
         return result;
     }
+
+    /// <summary>링크 계층 헤더 길이(인터페이스마다 링크 타입이 달라도 IP 패킷 이후만 비교하기 위함).</summary>
+    static int LinkHeaderLength(int linkType) => linkType switch
+    {
+        1 => 14,          // Ethernet
+        0 or 108 => 4,    // Null / Loop (Npcap 루프백)
+        113 => 16,        // Linux SLL
+        276 => 20,        // Linux SLL2
+        _ => 0,
+    };
 
     /// <summary>설정/IOC 변경 후 탐지와 타임라인만 다시 계산한다.</summary>
     public void RunDetection(AnalysisResult result)

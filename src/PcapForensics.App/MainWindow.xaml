@@ -30,6 +30,8 @@
                 <WrapPanel VerticalAlignment="Center">
                     <TextBlock Text="PCAP 침해사고 분석기" Foreground="White" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,18,0"/>
                     <Button Style="{StaticResource PrimaryButton}" Content="PCAP 열기" Command="{Binding OpenCommand}"/>
+                    <Button Style="{StaticResource ToolButton}" Content="● 실시간 모니터링" Click="Monitor_Click" Foreground="#FCA5A5" IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
+                            ToolTip="이 PC 의 모든 네트워크 인터페이스(가상·루프백 포함)를 캡처하고, 멈추면 자동으로 분석합니다."/>
                     <Button Style="{StaticResource ToolButton}" Content="IOC 불러오기" Command="{Binding LoadIocCommand}"
                             ToolTip="IP / 도메인 / URL / 해시 목록(txt)을 불러와 트래픽과 대조합니다."/>
                     <Button Style="{StaticResource ToolButton}" Content="규칙 다시 적용" Command="{Binding ReloadRulesCommand}"
@@ -64,7 +66,10 @@
                 Visibility="{Binding HasResult, Converter={StaticResource InverseBoolToVis}}">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <TextBlock Text="PCAP / PCAPNG 파일을 이곳에 끌어다 놓거나" FontSize="20" HorizontalAlignment="Center" Foreground="#334155"/>
-                <Button Style="{StaticResource PrimaryButton}" Content="파일 열기" Command="{Binding OpenCommand}" HorizontalAlignment="Center" Margin="0,16" Padding="24,10" FontSize="15"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16">
+                    <Button Style="{StaticResource PrimaryButton}" Content="파일 열기" Command="{Binding OpenCommand}" Padding="24,10" FontSize="15"/>
+                    <Button Style="{StaticResource PrimaryButton}" Content="● 실시간 모니터링" Click="Monitor_Click" Padding="24,10" FontSize="15" Margin="10,0,0,0" Background="#B91C1C"/>
+                </StackPanel>
                 <TextBlock Style="{StaticResource MutedText}" HorizontalAlignment="Center" TextAlignment="Center" LineHeight="22"
                            Text="포트 스캔 · 무차별 대입 · 웹 공격/웹셸 · 익스플로잇 킷 · DNS 터널링/DGA · C2 비컨 · ARP 스푸핑 · 평문 인증 정보 · IOC 매칭&#x0a;외부 라이브러리나 Npcap 설치 없이 동작합니다. 모든 시각은 UTC 로 표시됩니다."/>
             </StackPanel>

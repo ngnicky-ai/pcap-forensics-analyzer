@@ -3,7 +3,8 @@ using System.Buffers.Binary;
 namespace PcapForensics.Core.Pcap;
 
 /// <summary>캡처 파일에서 읽은 원시 프레임.</summary>
-public sealed record RawFrame(int Index, DateTime Timestamp, int LinkType, int OriginalLength, byte[] Data);
+/// <param name="InterfaceId">pcapng 인터페이스 번호(여러 인터페이스 동시 캡처 시 구분). 클래식 pcap 은 0.</param>
+public sealed record RawFrame(int Index, DateTime Timestamp, int LinkType, int OriginalLength, byte[] Data, int InterfaceId = 0);
 
 /// <summary>
 /// pcap(마이크로초/나노초, 리틀/빅 엔디언)과 pcapng 형식을 외부 라이브러리 없이 읽는다.
@@ -163,7 +164,7 @@ public static class PcapFileReader
                     var (link, ups) = ifId < interfaces.Count ? interfaces[ifId] : (1, 1_000_000UL);
                     lastTime = ToDate(ToTicks(ts, ups));
                     index++;
-                    yield return new RawFrame(index, lastTime, link, Math.Max(orig, cap), blk.AsSpan(20, cap).ToArray());
+                    yield return new RawFrame(index, lastTime, link, Math.Max(orig, cap), blk.AsSpan(20, cap).ToArray(), ifId);
                     break;
                 }
                 case 3: // Simple Packet Block (타임스탬프 없음)

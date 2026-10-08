@@ -1,0 +1,672 @@
+<title>PCAP 침해사고 분석 입문</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 레이아웃: 왼쪽 고정 목차 + 본문 한 단(교재형). 좁은 화면에서는 목차가 위로 접힘 */
+:root {
+  --bg: #f5f7f9;
+  --paper: #ffffff;
+  --ink: #18212b;
+  --muted: #5b6876;
+  --line: #dde3ea;
+  --accent: #0e6e74;
+  --accent-soft: #e2f1f1;
+  --code-bg: #f0f3f6;
+  --crit: #b91c1c;
+  --high: #c2410c;
+  --med: #a16207;
+  --low: #1d4ed8;
+  --ok: #15803d;
+  --note-bg: #fff8e6;
+  --note-line: #e9c46a;
+  --font-display: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --font-body: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --font-mono: "IBM Plex Mono", Consolas, "D2Coding", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12171d; --paper: #1a2129; --ink: #e4e9ee; --muted: #9aa7b4; --line: #2c3742;
+    --accent: #4fc1c4; --accent-soft: #163236; --code-bg: #212a33;
+    --crit: #f87171; --high: #fb923c; --med: #facc15; --low: #93b4ff; --ok: #4ade80;
+    --note-bg: #2a2416; --note-line: #8a6d1f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12171d; --paper: #1a2129; --ink: #e4e9ee; --muted: #9aa7b4; --line: #2c3742;
+  --accent: #4fc1c4; --accent-soft: #163236; --code-bg: #212a33;
+  --crit: #f87171; --high: #fb923c; --med: #facc15; --low: #93b4ff; --ok: #4ade80;
+  --note-bg: #2a2416; --note-line: #8a6d1f; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.8; word-break: keep-all; overflow-wrap: anywhere; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 0 64px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; }
+@media (max-width: 900px) { .wrap { grid-template-columns: minmax(0, 1fr); gap: 0; padding-inline: 16px; } }
+
+/* 목차 */
+nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; padding-block: 28px; max-height: 100vh; overflow-y: auto; font-size: 14px; }
+nav.toc .label { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+nav.toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 2px; }
+nav.toc a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; line-height: 1.5; }
+nav.toc a:hover, nav.toc a:focus-visible { background: var(--accent-soft); color: var(--accent); outline: none; }
+nav.toc .sub a { padding-left: 24px; color: var(--muted); font-size: 13px; }
+@media (max-width: 900px) {
+  nav.toc { position: static; max-height: none; padding-block: 16px 0; border-bottom: 1px solid var(--line); }
+  nav.toc .sub { display: none; }
+  nav.toc ol { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+}
+
+main { min-width: 0; }
+header.hero { padding-block: 44px 28px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--font-mono); font-size: 13px; color: var(--accent); letter-spacing: .06em; }
+h1, h2, h3, h4 { font-family: var(--font-display); text-wrap: balance; line-height: 1.35; }
+h1 { font-size: clamp(30px, 5vw, 44px); margin: 10px 0 14px; letter-spacing: -.01em; }
+.lead { font-size: 18px; color: var(--muted); max-width: 46em; margin: 0; }
+.packet-line { margin-top: 24px; font-family: var(--font-mono); font-size: 13px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; white-space: pre; color: var(--muted); }
+.packet-line b { color: var(--ink); font-weight: 500; }
+.packet-line .hl { color: var(--crit); }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 18px; font-size: 14px; color: var(--muted); }
+.meta span::before { content: "▸ "; color: var(--accent); }
+
+section.chapter { padding-block: 44px 8px; border-bottom: 1px solid var(--line); }
+.chapter-no { font-family: var(--font-mono); font-size: 13px; color: var(--accent); letter-spacing: .06em; }
+h2 { font-size: clamp(24px, 3.4vw, 30px); margin: 6px 0 18px; }
+h3 { font-size: 20px; margin: 36px 0 10px; }
+h4 { font-size: 16px; margin: 22px 0 6px; }
+p, li { max-width: 46em; }
+p { margin: 0 0 14px; }
+ul, ol { padding-left: 1.3em; }
+li { margin-bottom: 6px; }
+a { color: var(--accent); }
+strong { font-weight: 700; }
+code { font-family: var(--font-mono); font-size: .88em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { font-family: var(--font-mono); font-size: 13px; line-height: 1.6; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; margin: 10px 0 18px; }
+pre code { background: none; padding: 0; font-size: inherit; }
+.cm { color: var(--muted); }
+
+/* 표 */
+.table-wrap { overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; line-height: 1.6; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+th { font-family: var(--font-display); font-weight: 600; background: var(--code-bg); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.mono, .mono { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+/* 그림 */
+figure { margin: 18px 0 26px; }
+figure button.shot { display: block; width: 100%; padding: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--paper); cursor: zoom-in; }
+figure button.shot:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+figure img { display: block; width: 100%; height: auto; }
+figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; }
+figcaption b { color: var(--ink); font-family: var(--font-display); font-weight: 600; }
+
+/* 상자 */
+.box { border-radius: 8px; padding: 14px 18px; margin: 16px 0 22px; background: var(--paper); border: 1px solid var(--line); }
+.box > :last-child { margin-bottom: 0; }
+.box .tag { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; color: var(--accent); display: block; margin-bottom: 4px; }
+.box.note { background: var(--note-bg); border-color: var(--note-line); }
+.box.note .tag { color: var(--med); }
+dl.terms { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 18px; margin: 0; }
+dl.terms dt { font-family: var(--font-display); font-weight: 600; }
+dl.terms dd { margin: 0; color: var(--ink); }
+@media (max-width: 560px) { dl.terms { grid-template-columns: minmax(0, 1fr); gap: 2px; } dl.terms dd { margin-bottom: 8px; } }
+
+/* 목표 카드 */
+.goals { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 14px 0 22px; }
+.goal { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.goal h4 { margin: 0 0 4px; font-size: 15px; }
+.goal p { margin: 0; font-size: 14px; color: var(--muted); }
+
+/* 개발 단계 */
+ol.phases { list-style: none; padding: 0; margin: 14px 0 22px; display: grid; gap: 0; counter-reset: ph; }
+ol.phases li { counter-increment: ph; position: relative; padding: 0 0 18px 52px; max-width: none; }
+ol.phases li::before { content: counter(ph); position: absolute; left: 0; top: 0; width: 34px; height: 34px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-family: var(--font-mono); font-weight: 500; display: grid; place-items: center; }
+ol.phases li::after { content: ""; position: absolute; left: 16px; top: 38px; bottom: 4px; width: 2px; background: var(--line); }
+ol.phases li:last-child::after { display: none; }
+ol.phases h4 { margin: 4px 0 4px; }
+ol.phases p { margin: 0; font-size: 15px; }
+
+/* 파이프라인 */
+.pipeline { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 24px; counter-reset: st; }
+.stage { flex: 1 1 150px; min-width: 0; background: var(--paper); border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 6px; padding: 10px 12px; counter-increment: st; }
+.stage .n { font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+.stage .n::before { content: counter(st, decimal-leading-zero) " · "; }
+.stage b { display: block; font-family: var(--font-display); font-size: 15px; margin: 2px 0; }
+.stage small { display: block; font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+/* 계층 구조 */
+.layers { display: grid; gap: 8px; margin: 16px 0 24px; }
+.layer { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 14px; align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; }
+.layer .name { font-family: var(--font-display); font-weight: 700; }
+.layer .name small { display: block; font-family: var(--font-mono); font-weight: 400; font-size: 12px; color: var(--muted); }
+.layer .parts { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--code-bg); border: 1px solid var(--line); white-space: nowrap; }
+.layer.core { border-color: var(--accent); background: var(--accent-soft); }
+@media (max-width: 560px) { .layer { grid-template-columns: minmax(0, 1fr); } }
+
+/* 심각도 */
+.sev { display: inline-block; font-size: 12px; font-weight: 700; color: #fff; padding: 1px 8px; border-radius: 4px; white-space: nowrap; font-family: var(--font-display); }
+.sev.c { background: #b91c1c; } .sev.h { background: #c2410c; } .sev.m { background: #a16207; } .sev.l { background: #1d4ed8; }
+.src { font-family: var(--font-mono); font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.src.ids { border-color: var(--low); color: var(--low); }
+.src.own { border-color: var(--accent); color: var(--accent); }
+
+/* 공격 타임라인 */
+ol.attack { list-style: none; padding: 0; margin: 18px 0 26px; display: grid; gap: 0; }
+ol.attack li { display: grid; grid-template-columns: 110px 22px minmax(0, 1fr); gap: 0 12px; max-width: none; margin: 0; }
+ol.attack .t { font-family: var(--font-mono); font-size: 13px; color: var(--muted); padding-top: 3px; text-align: right; font-variant-numeric: tabular-nums; }
+ol.attack .dot { position: relative; }
+ol.attack .dot::before { content: ""; position: absolute; left: 5px; top: 8px; width: 12px; height: 12px; border-radius: 50%; background: var(--paper); border: 3px solid var(--accent); }
+ol.attack .dot::after { content: ""; position: absolute; left: 10px; top: 24px; bottom: -8px; width: 2px; background: var(--line); }
+ol.attack li:last-child .dot::after { display: none; }
+ol.attack li.phase-in .dot::before { border-color: var(--med); }
+ol.attack li.phase-ex .dot::before { border-color: var(--high); }
+ol.attack li.phase-c2 .dot::before { border-color: var(--crit); }
+ol.attack .ev { padding-bottom: 16px; font-size: 15px; }
+ol.attack .ev b { font-family: var(--font-display); }
+ol.attack .ev .d { display: block; color: var(--muted); font-size: 14px; }
+@media (max-width: 560px) { ol.attack li { grid-template-columns: 74px 22px minmax(0, 1fr); } ol.attack .t { font-size: 12px; } }
+
+/* 실습 */
+details.ex { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; margin: 10px 0; }
+details.ex summary { cursor: pointer; padding: 12px 16px; font-family: var(--font-display); font-weight: 600; list-style: none; }
+details.ex summary::-webkit-details-marker { display: none; }
+details.ex summary::before { content: "Q"; font-family: var(--font-mono); color: var(--accent); margin-right: 10px; }
+details.ex summary:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; border-radius: 8px; }
+details.ex .a { padding: 0 16px 14px 40px; }
+details.ex .a::before { content: "정답 및 근거"; display: block; font-family: var(--font-mono); font-size: 12px; color: var(--ok); margin-bottom: 4px; }
+
+footer { padding-block: 32px 0; font-size: 14px; color: var(--muted); }
+
+/* 확대 보기 */
+dialog#viewer { border: 0; padding: 0; background: transparent; max-width: 96vw; max-height: 96vh; }
+dialog#viewer::backdrop { background: rgba(10, 14, 18, .82); }
+dialog#viewer img { display: block; max-width: 96vw; max-height: 88vh; border-radius: 6px; }
+dialog#viewer p { color: #e4e9ee; font-size: 14px; margin: 8px 0 0; text-align: center; }
+dialog#viewer button { position: absolute; top: 8px; right: 8px; border: 0; border-radius: 6px; padding: 6px 12px; background: #e4e9ee; color: #18212b; font-family: var(--font-body); cursor: pointer; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="wrap">
+  <nav class="toc" aria-label="목차">
+    <span class="label">목차</span>
+    <ol>
+      <li><a href="#intro">시작하기 전에</a></li>
+      <li><a href="#purpose">1장 · 만든 목적</a></li>
+      <li class="sub"><a href="#why-packet">왜 패킷인가</a></li>
+      <li class="sub"><a href="#goals">설계 목표</a></li>
+      <li><a href="#plan">2장 · 개발 계획</a></li>
+      <li class="sub"><a href="#phases">단계별 진행</a></li>
+      <li class="sub"><a href="#lessons">실제로 부딪힌 문제</a></li>
+      <li><a href="#design">3장 · 설계와 기능</a></li>
+      <li class="sub"><a href="#layers">전체 구조</a></li>
+      <li class="sub"><a href="#pipeline">분석 파이프라인</a></li>
+      <li class="sub"><a href="#detectors">탐지 규칙</a></li>
+      <li class="sub"><a href="#screens">화면별 기능</a></li>
+      <li><a href="#case">4장 · 사례 분석</a></li>
+      <li class="sub"><a href="#case-flow">분석 순서</a></li>
+      <li class="sub"><a href="#case-timeline">공격 재구성</a></li>
+      <li class="sub"><a href="#case-response">대응</a></li>
+      <li><a href="#practice">실습 문제</a></li>
+      <li><a href="#glossary">용어 정리</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="hero" id="intro">
+      <span class="eyebrow">침해사고 분석 입문 · C# 실습 교재</span>
+      <h1>패킷 한 줄에서 침해 사고를 읽어 내는 법</h1>
+      <p class="lead">직접 만든 <strong>PCAP 침해사고 분석기</strong>를 교재로 삼아, 네트워크 캡처 파일에서 공격의 흔적을 찾는 과정을 처음부터 따라갑니다. 프로그램을 왜, 어떻게 만들었는지 살펴본 뒤, 실제 랜섬웨어 감염 트래픽을 함께 분석합니다.</p>
+      <div class="packet-line" aria-label="사례에 등장하는 실제 패킷 한 줄"><b>#10483</b>  17:58:33.321082  <b>192.168.137.239</b>:49287 → <b>72.55.148.19</b>:80  HTTP  731
+GET <span class="hl">/wp-content/plugins/useful-banner-manager/misc.php?D0B1745184D4B19325F8CA239D78E804BD793E…</span></div>
+      <div class="meta">
+        <span>대상: 보안 입문자, C# 기초 문법을 아는 개발자</span>
+        <span>소요 시간: 약 2시간</span>
+        <span>준비물: Windows PC, 실습 파일</span>
+      </div>
+    </header>
+
+    <div class="box">
+      <span class="tag">이 교재에서 배우는 것</span>
+      <ul>
+        <li>침해사고 대응에서 <strong>패킷 캡처(PCAP)</strong>가 어떤 증거가 되는지</li>
+        <li>분석 도구를 만들 때 무엇부터 계획하고, 어떤 순서로 구현하는지</li>
+        <li>패킷을 세션으로 묶고, 프로토콜을 해석하고, 위협을 탐지하는 <strong>설계 구조</strong></li>
+        <li>실제 감염 사례를 <strong>유입 → 공격 → 감염 → C2 통신</strong> 순서로 재구성하는 방법</li>
+      </ul>
+      <p>실습 파일과 프로그램은 <a href="https://github.com/ngnicky-ai/pcap-forensics-analyzer" target="_blank" rel="noopener">GitHub 저장소</a>의 <code>samples</code> 폴더와 <a href="https://github.com/ngnicky-ai/pcap-forensics-analyzer/releases/latest" target="_blank" rel="noopener">Releases</a>에서 받을 수 있습니다. 실습 파일에는 실제 악성 트래픽이 들어 있으므로 업무용 PC가 아닌 격리된 환경에서 다루세요.</p>
+    </div>
+
+    <!-- 1장 -->
+    <section class="chapter" id="purpose">
+      <span class="chapter-no">1장</span>
+      <h2>이 프로그램을 만든 목적</h2>
+
+      <h3 id="why-packet">침해사고 분석에서 패킷이 중요한 이유</h3>
+      <p>회사 PC 한 대가 랜섬웨어에 감염됐다고 해 봅시다. 대응 담당자가 가장 먼저 알아야 할 것은 세 가지입니다. <strong>어디서 들어왔는지</strong>, <strong>무엇을 했는지</strong>, <strong>어디와 통신하고 있는지</strong>입니다.</p>
+      <p>PC 안의 로그는 공격자가 지울 수 있고, 백신은 이미 알려진 악성코드만 잡습니다. 반면 네트워크를 지나간 패킷은 공격자가 지울 수 없는 기록입니다. 방화벽이나 스위치에서 미리 떠 둔 <strong>패킷 캡처 파일(PCAP)</strong>이 있다면, 그 안에 접속한 사이트, 내려받은 파일, 외부 서버와 주고받은 신호가 모두 남아 있습니다.</p>
+
+      <div class="box">
+        <span class="tag">용어</span>
+        <dl class="terms">
+          <dt>패킷</dt><dd>네트워크로 오가는 데이터의 최소 단위입니다. 편지 한 통에 비유하면 봉투(출발지·목적지 주소)와 내용물(데이터)로 이루어져 있습니다.</dd>
+          <dt>PCAP</dt><dd>패킷을 시간 순서대로 저장한 파일 형식입니다. Wireshark나 tcpdump로 만들며 확장자는 <code>.pcap</code> 또는 <code>.pcapng</code>입니다.</dd>
+          <dt>침해사고</dt><dd>공격자가 시스템에 무단으로 접근하거나 악성코드를 실행한 보안 사고입니다.</dd>
+        </dl>
+      </div>
+
+      <h3>기존 방식의 어려움</h3>
+      <p>패킷 분석에는 보통 <a href="https://www.wireshark.org/" target="_blank" rel="noopener">Wireshark</a>를 씁니다. Wireshark는 강력하지만 패킷을 <em>보여 주는</em> 도구이고, 무엇이 수상한지는 분석가가 직접 판단해야 합니다. 이번 실습 파일만 해도 패킷이 13,195개입니다. 입문자가 이 중에서 공격과 관련된 수십 개를 찾아내기는 쉽지 않습니다.</p>
+      <ul>
+        <li>어떤 필터를 걸어야 하는지 알려면 공격 유형을 먼저 알아야 합니다.</li>
+        <li>HTTP 응답이 gzip으로 압축되어 있거나 여러 패킷에 나뉘어 있으면 내용을 바로 읽을 수 없습니다.</li>
+        <li>찾아낸 사실을 보고서로 정리하는 데에도 시간이 많이 걸립니다.</li>
+      </ul>
+
+      <h3 id="goals">그래서 정한 설계 목표</h3>
+      <p>이 프로그램은 Wireshark를 대신하려는 것이 아닙니다. <strong>"분석가가 어디부터 봐야 하는지"를 먼저 알려 주는 도구</strong>를 목표로 했습니다.</p>
+      <div class="goals">
+        <div class="goal"><h4>자동으로 찾아 준다</h4><p>포트 스캔, 무차별 대입, 웹셸, 악성 파일 다운로드, C2 통신 같은 공격 흔적을 규칙으로 찾아 심각도 순으로 보여 줍니다.</p></div>
+        <div class="goal"><h4>근거를 함께 보여 준다</h4><p>"위험합니다"에서 끝나지 않고, 어떤 패킷·URL·해시 때문인지와 MITRE ATT&amp;CK 기법, 대응 권고를 같이 제시합니다.</p></div>
+        <div class="goal"><h4>설치 없이 실행된다</h4><p>캡처 드라이버(Npcap)나 외부 라이브러리 없이 파일만 읽어 분석합니다. 압축을 풀면 바로 실행됩니다.</p></div>
+        <div class="goal"><h4>배우면서 쓸 수 있다</h4><p>탐지 결과에서 세션, HTTP 원문, 패킷까지 따라 내려가며 "왜 이것이 공격인지"를 직접 확인할 수 있습니다.</p></div>
+      </div>
+    </section>
+
+    <!-- 2장 -->
+    <section class="chapter" id="plan">
+      <span class="chapter-no">2장</span>
+      <h2>프로그램을 만들기 위한 계획</h2>
+
+      <p>분석 도구를 만들 때는 화면부터 그리고 싶어지지만, 순서는 반대가 좋습니다. <strong>데이터를 정확히 읽는 엔진</strong>을 먼저 만들고, 실제 샘플로 결과를 검증한 다음, 마지막에 화면과 배포를 붙였습니다.</p>
+
+      <h3>기술 선택</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>항목</th><th>선택</th><th>이유</th></tr></thead>
+          <tbody>
+            <tr><td>언어·플랫폼</td><td>C# / .NET 8</td><td>바이트 처리 성능이 좋고(<code>Span&lt;byte&gt;</code>), Windows 화면 개발(WPF)까지 한 언어로 할 수 있습니다.</td></tr>
+            <tr><td>화면</td><td>WPF</td><td>표(DataGrid) 수만 행도 가상화로 부드럽게 보여 주고, 데이터 바인딩으로 화면과 분석 로직을 분리하기 쉽습니다.</td></tr>
+            <tr><td>패킷 해석</td><td>직접 구현</td><td>SharpPcap 같은 라이브러리는 Npcap 설치가 필요합니다. 파일 형식과 프로토콜 구조를 직접 읽으면 설치가 필요 없고, 손상된 패킷도 끝까지 처리할 수 있습니다.</td></tr>
+            <tr><td>규칙 저장</td><td>JSON 파일</td><td>임계값과 웹 공격 패턴을 코드 수정 없이 바꿀 수 있습니다.</td></tr>
+            <tr><td>외부 탐지 엔진</td><td>Suricata(선택)</td><td>공개 룰셋 5만여 개로 알려진 악성코드를 이름까지 식별합니다. 자체 엔진과 서로 보완합니다.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="phases">단계별 진행</h3>
+      <ol class="phases">
+        <li><h4>요구사항 정리</h4><p>"침해사고 분석에 필요한 질문"에서 출발해 기능을 뽑았습니다. 누가 공격했나(출발지), 무엇을 노렸나(서비스·계정), 무엇이 들어왔나(파일), 어디와 통신하나(C2).</p></li>
+        <li><h4>읽기 엔진</h4><p>pcap/pcapng 파일 리더와 패킷 디코더(Ethernet → IPv4/IPv6 → TCP/UDP)를 만들고, 흩어진 TCP 패킷을 이어 붙이는 재조립 기능을 구현했습니다.</p></li>
+        <li><h4>프로토콜 해석</h4><p>HTTP(분할 전송·gzip 해제), DNS, TLS 접속 도메인(SNI), FTP·메일·HTTP 로그인 정보를 해석했습니다.</p></li>
+        <li><h4>탐지 규칙</h4><p>공격 유형마다 하나의 탐지기(Detector)를 만들고, 모두 같은 형식의 결과(심각도·근거·권고)를 내도록 통일했습니다.</p></li>
+        <li><h4>명령줄 도구로 검증</h4><p>화면보다 먼저 CLI(<code>pcapir</code>)를 만들어 실제 샘플 3개를 반복 분석했습니다. 여기서 오탐과 버그를 가장 많이 찾았습니다.</p></li>
+        <li><h4>화면(GUI)</h4><p>대시보드, 탐지 결과, 타임라인, 세션, HTTP, DNS, 파일, 패킷 탭을 만들고, 탐지 결과에서 관련 세션으로 바로 이동하도록 연결했습니다.</p></li>
+        <li><h4>자동 테스트</h4><p>파서와 탐지 결과를 검사하는 테스트 44개를 작성했습니다. 규칙을 고쳐도 기존 탐지가 깨지지 않았는지 바로 확인할 수 있습니다.</p></li>
+        <li><h4>Suricata 연동과 배포</h4><p>Suricata 검사 결과를 탐지 결과에 합치고, 실행 파일 하나로 배포했습니다.</p></li>
+      </ol>
+
+      <h3 id="lessons">실제로 부딪힌 문제와 해결</h3>
+      <p>계획대로만 진행되는 개발은 없습니다. 샘플로 검증하면서 발견한 문제들이 오히려 가장 좋은 공부거리였습니다.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>발견한 문제</th><th>원인</th><th>해결</th></tr></thead>
+          <tbody>
+            <tr><td>FTP 로그인 시도가 실제의 2배(1,398회)로 집계됨</td><td>캡처 파일 안에 시각과 내용이 똑같은 패킷이 9,865개 중복 저장되어 있었습니다(파일 병합 흔적).</td><td>패킷마다 시각과 해시를 비교해 중복 프레임을 제외하고 경고를 표시합니다. 결과는 703회로 바로잡혔습니다.</td></tr>
+            <tr><td>평범한 웹 서핑이 "호스트 스윕(정찰)"으로 탐지됨</td><td>브라우저가 광고·CDN 서버 수십 곳에 접속하는 것을 스캔으로 오인했습니다.</td><td>대상 대부분이 외부 서버이고 정상 응답했다면 스윕으로 보지 않도록 조건을 추가했습니다.</td></tr>
+            <tr><td>웹 글꼴 파일이 "암호화된 악성 페이로드"로 탐지됨</td><td>EOT 글꼴은 압축되어 있어 엔트로피가 높지만, 파일 형식 판별 목록에 없었습니다.</td><td>EOT·TrueType 글꼴의 매직 바이트를 추가했습니다.</td></tr>
+            <tr><td>캡처 중간부터 기록된 세션에서 계정 이름이 비어 있음</td><td><code>USER</code> 명령이 캡처 시작 전에 지나갔습니다.</td><td>서버 응답 <code>331 Password required for admin.</code>에서 계정 이름을 추론합니다.</td></tr>
+            <tr><td>Suricata가 실행되자마자 종료됨</td><td>Npcap이 WinPcap 호환 모드가 아니어서 <code>wpcap.dll</code>을 찾지 못했습니다.</td><td>Suricata를 실행할 때 Npcap 폴더를 PATH에 자동으로 추가합니다.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="box note">
+        <span class="tag">배울 점</span>
+        <p>탐지 규칙은 <strong>실제 데이터로 검증하기 전까지는 가설</strong>일 뿐입니다. 오탐이 많은 도구는 분석가가 결국 경고를 무시하게 만듭니다. 그래서 고친 오탐 하나하나를 자동 테스트로 고정해, 다시 생기지 않도록 했습니다.</p>
+      </div>
+    </section>
+
+    <!-- 3장 -->
+    <section class="chapter" id="design">
+      <span class="chapter-no">3장</span>
+      <h2>설계 구조와 기능별 설명</h2>
+
+      <h3 id="layers">전체 구조: 엔진과 화면을 나눈다</h3>
+      <p>프로그램은 세 층으로 나뉩니다. 핵심은 가운데의 <strong>분석 엔진(Core)</strong>입니다. 화면(GUI)과 명령줄(CLI)은 같은 엔진을 불러 쓰는 겉모습일 뿐이라, 엔진을 한 번 고치면 양쪽에 똑같이 반영되고 테스트도 엔진만 대상으로 하면 됩니다.</p>
+      <div class="layers">
+        <div class="layer"><div class="name">사용자 화면<small>App · Cli</small></div><div class="parts"><span class="chip">WPF GUI (PcapForensics.exe)</span><span class="chip">명령줄 pcapir.exe</span><span class="chip">HTML·CSV 보고서</span></div></div>
+        <div class="layer core"><div class="name">분석 엔진<small>PcapForensics.Core</small></div><div class="parts"><span class="chip">Pcap</span><span class="chip">Decoding</span><span class="chip">Sessions</span><span class="chip">Protocols</span><span class="chip">Detection</span><span class="chip">Ids</span><span class="chip">Analysis</span><span class="chip">Reporting</span></div></div>
+        <div class="layer"><div class="name">외부 설정·도구<small>rules · Suricata</small></div><div class="parts"><span class="chip">settings.json</span><span class="chip">web_attack_rules.json</span><span class="chip">IOC 목록</span><span class="chip">Suricata + ET Open 룰</span></div></div>
+      </div>
+<pre><code>PcapForensics.sln
+├─ src/
+│  ├─ PcapForensics.Core/     <span class="cm">분석 엔진 (화면과 무관한 순수 로직)</span>
+│  │  ├─ Pcap/                <span class="cm">pcap·pcapng 파일 읽기</span>
+│  │  ├─ Decoding/            <span class="cm">패킷 디코딩 (Ethernet, IP, TCP, UDP, ARP)</span>
+│  │  ├─ Sessions/            <span class="cm">세션 추적, TCP 재조립, 프로토콜 식별</span>
+│  │  ├─ Protocols/           <span class="cm">HTTP, DNS, TLS, 평문 인증 해석</span>
+│  │  ├─ Detection/           <span class="cm">탐지 규칙 11종, IOC</span>
+│  │  ├─ Ids/                 <span class="cm">Suricata 실행, eve.json 읽기</span>
+│  │  ├─ Analysis/            <span class="cm">분석 순서 제어, 파일 추출, 통계, 타임라인</span>
+│  │  └─ Reporting/           <span class="cm">HTML 보고서, CSV, 파일 저장</span>
+│  ├─ PcapForensics.App/      <span class="cm">WPF 화면</span>
+│  └─ PcapForensics.Cli/      <span class="cm">명령줄 도구</span>
+└─ tests/PcapForensics.Tests/ <span class="cm">자동 테스트 44개</span></code></pre>
+
+      <h3 id="pipeline">분석 파이프라인: 파일이 결과가 되기까지</h3>
+      <p>파일을 열면 아래 순서로 처리됩니다. 앞 단계의 결과가 다음 단계의 재료가 되는 <strong>파이프라인</strong> 구조입니다.</p>
+      <div class="pipeline">
+        <div class="stage"><span class="n">Pcap</span><b>파일 읽기</b><small>파일 머리말로 형식을 판별하고, 패킷과 수신 시각을 하나씩 꺼냅니다.</small></div>
+        <div class="stage"><span class="n">Decoding</span><b>패킷 해석</b><small>바이트를 주소·포트·플래그 같은 의미 있는 값으로 바꿉니다.</small></div>
+        <div class="stage"><span class="n">Sessions</span><b>세션 재조립</b><small>같은 연결의 패킷을 묶고, 순서가 뒤바뀌거나 재전송된 조각을 정리해 이어 붙입니다.</small></div>
+        <div class="stage"><span class="n">Protocols</span><b>프로토콜 해석</b><small>이어 붙인 데이터에서 HTTP 요청, DNS 질의, 로그인 정보를 읽어 냅니다.</small></div>
+        <div class="stage"><span class="n">Analysis</span><b>파일 추출·통계</b><small>전송된 파일을 꺼내 해시를 계산하고, 프로토콜·IP별 통계를 냅니다.</small></div>
+        <div class="stage"><span class="n">Detection</span><b>위협 탐지</b><small>탐지 규칙을 차례로 적용하고, Suricata 경보가 있으면 합칩니다.</small></div>
+        <div class="stage"><span class="n">Analysis</span><b>타임라인</b><small>DNS·HTTP·탐지·파일 이벤트를 시간순으로 정렬합니다.</small></div>
+        <div class="stage"><span class="n">Reporting</span><b>보고서</b><small>화면 표시, HTML 보고서, CSV, 파일 저장으로 내보냅니다.</small></div>
+      </div>
+
+      <h4>핵심 개념: TCP 재조립</h4>
+      <p>웹 페이지 하나도 여러 패킷으로 쪼개져 전송되고, 네트워크 사정에 따라 순서가 뒤바뀌거나 같은 조각이 다시 오기도 합니다. TCP는 각 조각에 <strong>순서 번호(Seq)</strong>를 붙이므로, 이 번호로 정렬하고 겹치는 부분을 잘라 내면 원래 데이터를 복원할 수 있습니다.</p>
+<pre><code><span class="cm">// 도착 순서:  "World"(Seq 1007) → "Hello "(1001) → "Hello "(1001, 재전송) → "lo Wo"(1004, 겹침)</span>
+<span class="cm">// 재조립 결과: "Hello World"   ← 테스트 코드로 검증하는 실제 예시</span>
+foreach (var seg in segments.OrderBy(s =&gt; s.Seq))
+{
+    if (seg.End &lt;= expected) continue;        <span class="cm">// 이미 받은 조각(재전송)은 건너뜀</span>
+    int skip = Math.Max(0, expected - seg.Start); <span class="cm">// 겹친 앞부분은 잘라 냄</span>
+    output.Write(seg.Data, skip, seg.Length - skip);
+    expected = seg.End;
+}</code></pre>
+
+      <h4>확장 가능한 탐지 구조</h4>
+      <p>모든 탐지 규칙은 같은 약속(인터페이스)을 따릅니다. 분석 결과를 받아 탐지 결과 목록을 돌려주기만 하면 됩니다. 새 공격 유형을 잡고 싶으면 이 약속을 따르는 클래스를 하나 추가하면 끝입니다.</p>
+<pre><code>public interface IDetector
+{
+    string Name { get; }
+    IEnumerable&lt;Finding&gt; Detect(DetectionContext ctx);   <span class="cm">// 심각도·근거·MITRE·권고를 담은 결과</span>
+}</code></pre>
+      <p>판단 기준이 되는 숫자는 코드가 아니라 <code>rules\settings.json</code>에 있습니다. 예를 들어 "5분 안에 서로 다른 포트 15개 이상에 접속하면 포트 스캔"이라는 기준은 아래처럼 바꿀 수 있고, 화면의 <strong>규칙 다시 적용</strong> 버튼으로 바로 반영됩니다.</p>
+<pre><code>"PortScanMinPorts": 15,        <span class="cm">// 서로 다른 포트 수</span>
+"PortScanWindowSeconds": 300,  <span class="cm">// 시간 창(초)</span>
+"BruteForceMinFailures": 5,    <span class="cm">// 로그인 실패 몇 번부터 무차별 대입으로 볼지</span></code></pre>
+
+      <h3 id="detectors">탐지 규칙 한눈에 보기</h3>
+      <p>탐지 결과에는 <strong>MITRE ATT&amp;CK</strong> 기법 번호가 붙습니다. 전 세계 보안 업계가 공격 기법을 부르는 공통 이름표라서, 보고서를 읽는 다른 사람도 같은 뜻으로 이해할 수 있습니다.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>탐지 규칙</th><th>무엇을 보고 판단하나</th><th>ATT&amp;CK</th></tr></thead>
+          <tbody>
+            <tr><td>포트 스캔</td><td>한 출발지가 짧은 시간에 여러 포트·여러 호스트에 접속 시도</td><td class="mono">T1046</td></tr>
+            <tr><td>무차별 대입</td><td>로그인 실패 반복(성공하면 '심각'), 인증 서비스 반복 접속, 웹 로그인 반복</td><td class="mono">T1110</td></tr>
+            <tr><td>웹 공격</td><td>요청 속 SQL 인젝션·XSS·경로 탐색·명령어 삽입 패턴, 응답 속 공격 성공 징후</td><td class="mono">T1190</td></tr>
+            <tr><td>웹셸</td><td>서버에 스크립트를 올린 뒤 그 경로로 명령을 보내는 흐름</td><td class="mono">T1505.003</td></tr>
+            <tr><td>악성 파일 유입</td><td>실행 파일 다운로드, 확장자 위장, Flash·Java, 암호화된 페이로드, 익스플로잇 킷 감염 흐름</td><td class="mono">T1189, T1105</td></tr>
+            <tr><td>DNS 이상</td><td>길고 무작위한 하위 도메인 대량 질의(터널링), 존재하지 않는 도메인 다수 질의(DGA)</td><td class="mono">T1071.004</td></tr>
+            <tr><td>비컨</td><td>같은 서버에 일정한 간격으로 반복 접속하는 기계적인 통신</td><td class="mono">T1071</td></tr>
+            <tr><td>ARP 스푸핑</td><td>한 IP 주소에 대해 서로 다른 MAC 주소가 응답</td><td class="mono">T1557.002</td></tr>
+            <tr><td>평문 인증 정보</td><td>암호화 없이 전송된 계정·비밀번호, 기본 비밀번호 사용</td><td class="mono">T1552</td></tr>
+            <tr><td>IOC 일치</td><td>사용자가 불러온 악성 IP·도메인·파일 해시 목록과 일치</td><td class="mono">—</td></tr>
+            <tr><td>IDS 경보</td><td>Suricata 룰(ET Open 약 52,000개)의 경보</td><td class="mono">룰 정보</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="screens">화면별 기능</h3>
+      <p>프로그램을 실행하면 아래 화면이 나옵니다. 캡처 파일을 창에 끌어다 놓거나 <strong>PCAP 열기</strong>를 누르면 분석이 시작됩니다. 화면이 작게 보이면 <code>Ctrl</code> + 마우스 휠로 확대할 수 있습니다.</p>
+      <figure>
+        <button class="shot" type="button" aria-label="시작 화면 크게 보기"><img src="images/00_start.png" alt="PCAP 침해사고 분석기 시작 화면. 파일을 끌어다 놓으라는 안내와 파일 열기 버튼이 있다." loading="lazy" width="1520" height="920"></button>
+        <figcaption><b>그림 1.</b> 시작 화면. 위쪽 도구 모음에서 파일 열기, IOC 불러오기, Suricata 검사, 보고서 저장을 할 수 있습니다.</figcaption>
+      </figure>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>탭</th><th>보여 주는 것</th><th>이럴 때 봅니다</th></tr></thead>
+          <tbody>
+            <tr><td>대시보드</td><td>판정, 심각도별 건수, 시간대별 트래픽, 상위 통신 IP</td><td>사건의 큰 그림을 처음 파악할 때</td></tr>
+            <tr><td>탐지 결과</td><td>탐지 목록과 근거·MITRE·대응 권고</td><td>무엇이 위험한지 확인할 때</td></tr>
+            <tr><td>타임라인</td><td>모든 이벤트의 시간순 목록</td><td>공격 순서를 재구성할 때</td></tr>
+            <tr><td>세션</td><td>연결 목록과 양방향 대화 내용</td><td>특정 통신의 실제 내용을 볼 때</td></tr>
+            <tr><td>HTTP · DNS · TLS</td><td>요청·질의 목록과 상세 내용</td><td>웹 접속, 도메인 조회 흐름을 볼 때</td></tr>
+            <tr><td>인증 정보</td><td>평문으로 노출된 계정·비밀번호</td><td>계정 탈취 여부를 확인할 때</td></tr>
+            <tr><td>추출 파일</td><td>전송된 파일, 실제 형식, 해시</td><td>악성 파일을 증거로 확보할 때</td></tr>
+            <tr><td>패킷</td><td>개별 패킷과 16진수 내용</td><td>가장 낮은 수준의 근거를 확인할 때</td></tr>
+            <tr><td>IDS 경보</td><td>Suricata 경보와 연결된 세션</td><td>알려진 위협의 이름을 확인할 때</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>각 탭은 서로 연결되어 있습니다. 탐지 결과에서 <strong>관련 세션 보기</strong>를 누르면 세션 탭으로, 세션에서 <strong>이 세션의 패킷 보기</strong>를 누르면 패킷 탭으로 이동합니다. "결론 → 근거 → 원본" 순서로 내려가며 확인하는 것이 이 프로그램의 기본 사용법입니다.</p>
+    </section>
+
+    <!-- 4장 -->
+    <section class="chapter" id="case">
+      <span class="chapter-no">4장</span>
+      <h2>샘플 분석 사례: 웹 서핑 한 번이 랜섬웨어 감염으로</h2>
+
+      <div class="box">
+        <span class="tag">사례 정보</span>
+        <div class="table-wrap" style="margin:6px 0 0">
+          <table>
+            <tbody>
+              <tr><th>파일</th><td class="mono">2015-08-31-traffic-analysis-exercise.pcap</td></tr>
+              <tr><th>출처</th><td><a href="https://www.malware-traffic-analysis.net/" target="_blank" rel="noopener">malware-traffic-analysis.net</a> 트래픽 분석 연습 문제</td></tr>
+              <tr><th>규모</th><td>패킷 13,195개 · 7.76 MB · 캡처 6분 7초 · 세션 240개(TCP 168, UDP 72)</td></tr>
+              <tr><th>상황</th><td>내부 PC 한 대가 평소처럼 웹 서핑을 하던 중의 트래픽입니다. 이 안에서 무슨 일이 있었는지 밝혀 봅니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3 id="case-flow">분석 순서</h3>
+      <p>숙련된 분석가는 아래 순서를 습관처럼 따릅니다. <strong>큰 그림 → 위험 신호 → 근거 → 시간 순서 → 증거 → 대응</strong>입니다.</p>
+
+      <h4>① 대시보드에서 큰 그림 보기</h4>
+      <figure>
+        <button class="shot" type="button" aria-label="대시보드 크게 보기"><img src="images/01_dashboard.png" alt="대시보드. 침해 정황이 확인되었다는 빨간 판정 띠, 심각 4건, 높음 1건, 보통 5건, 패킷 13,195개, 세션 240개, 시간대별 트래픽 그래프와 상위 통신 IP." loading="lazy" width="1520" height="920"></button>
+        <figcaption><b>그림 2.</b> 대시보드. 맨 위의 빨간 띠가 "침해 정황 확인"이라는 판정입니다.</figcaption>
+      </figure>
+      <p>분석은 1초 안에 끝나고, Suricata 검사까지 더해 약 6초가 걸립니다. 화면에서 읽어 낼 것은 세 가지입니다.</p>
+      <ul>
+        <li><strong>판정:</strong> 심각 등급 탐지가 4건 있습니다. 단순한 의심이 아니라 감염 정황이 있다는 뜻입니다.</li>
+        <li><strong>트래픽 그래프:</strong> 17시 58분 무렵에 큰 봉우리가 몰려 있습니다. 이 시간대를 집중해서 봐야 합니다.</li>
+        <li><strong>상위 통신 IP:</strong> 192.168.137.239가 가장 많이 통신했습니다. 사설 IP(192.168.x.x)이므로 이것이 <strong>내부 PC</strong>, 즉 조사 대상입니다.</li>
+      </ul>
+
+      <h4>② 탐지 결과에서 위험 신호 확인</h4>
+      <figure>
+        <button class="shot" type="button" aria-label="탐지 결과 크게 보기"><img src="images/02_findings.png" alt="탐지 결과 탭. 11건의 탐지 중 익스플로잇 킷 감염 체인 의심이 선택되어 오른쪽에 근거와 대응 권고가 표시된다." loading="lazy" width="1520" height="920"></button>
+        <figcaption><b>그림 3.</b> 탐지 결과 11건. 선택한 "익스플로잇 킷 감염 체인 의심"의 근거가 오른쪽에 나옵니다.</figcaption>
+      </figure>
+      <p>가장 눈에 띄는 것은 자체 엔진이 찾은 <span class="sev c">심각</span> <strong>익스플로잇 킷 감염 체인</strong>입니다. 오른쪽 근거를 읽으면 다음 흐름이 보입니다.</p>
+      <ol>
+        <li>사용자는 정상 사이트 <code>vitaminsthatrock.com</code>에 접속했습니다(Referer 기록).</li>
+        <li>그 직후 낯선 도메인 <code>vclphjybj.ioxbpjgtqvwqfzmwhn.ga</code>의 13390번 포트로 이동했습니다. 무작위 문자열 도메인, 흔치 않은 포트는 전형적인 악성 서버의 특징입니다.</li>
+        <li>그곳에서 Flash 파일(SWF)과 307 KB짜리 파일을 내려받았습니다. 이 파일은 이름이 <code>.html</code>인데 내용은 HTML이 아니고, 엔트로피가 8.00(최댓값)이라 <strong>암호화된 데이터</strong>입니다.</li>
+      </ol>
+      <div class="box">
+        <span class="tag">용어</span>
+        <dl class="terms">
+          <dt>익스플로잇 킷</dt><dd>방문자 브라우저의 취약점(여기서는 Flash)을 자동으로 공격해 악성코드를 설치하는 공격 도구 모음입니다. 정상 사이트를 해킹해 방문자를 킷으로 몰래 보냅니다.</dd>
+          <dt>엔트로피</dt><dd>데이터가 얼마나 무작위한지를 0~8로 나타낸 값입니다. 일반 문서는 4~5 정도이고, 암호화되거나 압축된 데이터는 8에 가깝습니다. 악성코드는 탐지를 피하려고 자신을 암호화해서 전달합니다.</dd>
+        </dl>
+      </div>
+
+      <h4>③ IDS 경보로 위협의 이름 확인</h4>
+      <figure>
+        <button class="shot" type="button" aria-label="IDS 경보 크게 보기"><img src="images/03_ids_alerts.png" alt="IDS 경보 탭. Suricata 경보 17건 중 ET MALWARE AlphaCrypt CnC Beacon 5가 선택되어 아래에 상세 정보가 나온다." loading="lazy" width="1520" height="920"></button>
+        <figcaption><b>그림 4.</b> Suricata 경보 17건. 선택한 경보의 룰 번호·분류·세션이 아래에 표시됩니다.</figcaption>
+      </figure>
+      <p><strong>Suricata 검사</strong>를 누르면 공개 룰셋으로 같은 파일을 한 번 더 검사합니다. 자체 엔진은 "익스플로잇 킷으로 무언가가 설치됐다"까지 알려 주지만, Suricata는 그 <strong>무언가의 이름</strong>을 알려 줍니다.</p>
+      <ul>
+        <li><code>ET EXPLOIT_KIT Possible Evil Redirector Leading to EK</code>: 정상 사이트(64.20.39.203)의 응답에 익스플로잇 킷으로 보내는 코드가 심어져 있었습니다. <strong>최초 유입 지점</strong>입니다.</li>
+        <li><code>ET MALWARE AlphaCrypt CnC Beacon</code>, <code>Alphacrypt/TeslaCrypt Ransomware CnC Beacon Response</code>: 내부 PC가 72.55.148.19와 <strong>랜섬웨어 C2 통신</strong>을 했습니다. 설치된 것이 랜섬웨어였다는 결정적 증거입니다.</li>
+      </ul>
+      <p>모든 경보는 분석기의 세션 번호와 연결되어 있어, <strong>세션 보기</strong>로 실제 대화 내용을 바로 확인할 수 있습니다.</p>
+
+      <h4>④ 근거를 원문으로 확인: HTTP와 세션</h4>
+      <figure>
+        <button class="shot" type="button" aria-label="HTTP 탭 크게 보기"><img src="images/04_http.png" alt="HTTP 탭. 포트 13390으로 필터링한 4건의 요청과, 압축을 푼 랜딩 페이지 HTML. 무작위 변수명과 Flash object 태그가 보인다." loading="lazy" width="1520" height="920"></button>
+        <figcaption><b>그림 5.</b> 랜딩 페이지 요청과 응답. 왼쪽은 요청, 오른쪽은 gzip 압축을 푼 응답 본문입니다.</figcaption>
+      </figure>
+      <p>검색창에 <code>13390</code>을 입력하면 악성 서버와의 요청 4건만 남습니다. 응답 본문에는 의미 없는 이름의 변수(<code>ucnojasxgkcgrtya = 794340</code>)와 Flash를 실행하는 <code>&lt;object&gt;</code> 태그가 있습니다. 사람이 읽지 못하도록 일부러 뒤섞은 <strong>난독화</strong>의 흔적입니다. 요청의 <code>Referer</code> 헤더가 <code>http://vitaminsthatrock.com/</code>이므로, 이 페이지로 보낸 곳이 해킹된 정상 사이트임을 다시 확인할 수 있습니다.</p>
+
+      <figure>
+        <button class="shot" type="button" aria-label="C2 세션 크게 보기"><img src="images/07_session_c2.png" alt="세션 탭. 72.55.148.19로 필터링한 2개의 세션과, 긴 16진수 문자열을 담은 GET 요청 및 ---!!!INSERTED!!!--- 응답." loading="lazy" width="1520" height="920"></button>
+        <figcaption><b>그림 6.</b> C2 서버와의 세션. 왼쪽 빨간 글씨가 PC가 보낸 내용, 오른쪽 파란 글씨가 서버의 응답입니다.</figcaption>
+      </figure>
+      <p>세션 탭에서 <code>72.55.148.19</code>를 검색하면 C2 통신 2건이 나옵니다. PC는 WordPress 플러그인 경로처럼 보이는 주소(<code>/wp-content/plugins/…/misc.php</code>)에 긴 16진수 문자열을 붙여 보냈습니다. 감염 정보를 암호화해 전달한 것으로 보입니다. 서버는 <code>---!!!INSERTED!!!---</code>라고 짧게 답했는데, 감염 PC 등록을 확인하는 응답으로 추정됩니다. 정상 웹 서핑에서는 볼 수 없는 형태입니다.</p>
+
+      <figure>
+        <button class="shot" type="button" aria-label="패킷 탭 크게 보기"><img src="images/09_packets.png" alt="패킷 탭. 세션 185의 패킷 13개. SYN, SYN ACK, ACK로 연결을 맺은 뒤 HTTP 요청과 응답, FIN과 RST로 끝난다. 아래에 선택한 패킷의 16진수 내용." loading="lazy" width="1520" height="920"></button>
+        <figcaption><b>그림 7.</b> C2 세션을 이루는 패킷 13개. 가장 낮은 수준의 원본 증거입니다.</figcaption>
+      </figure>
+      <p>세션에서 <strong>이 세션의 패킷 보기</strong>를 누르면 연결 하나가 패킷 13개로 어떻게 이루어졌는지 보입니다. 맨 위 세 줄 <code>[SYN] → [SYN, ACK] → [ACK]</code>는 TCP 연결을 맺는 <strong>3-way 핸드셰이크</strong>이고, 이어서 HTTP 요청(#10483)과 응답이 오가며, <code>FIN</code>·<code>RST</code>로 연결이 끝납니다. 보고서에 "프레임 #10483"처럼 패킷 번호를 적어 두면 다른 분석가도 같은 증거를 찾을 수 있습니다.</p>
+
+      <h4>⑤ 타임라인으로 시간 순서 재구성</h4>
+      <figure>
+        <button class="shot" type="button" aria-label="타임라인 크게 보기"><img src="images/05_timeline.png" alt="타임라인 탭. ioxbpjgtqvwqfzmwhn으로 필터링한 8개 이벤트. DNS 질의, 탐지, HTTP 요청이 시간순으로 나열되어 있다." loading="lazy" width="1520" height="920"></button>
+        <figcaption><b>그림 8.</b> 악성 도메인으로 거른 타임라인. DNS 질의 → 탐지 → HTTP 요청 순서가 한눈에 보입니다.</figcaption>
+      </figure>
+      <p>지금까지 찾은 조각을 시간순으로 놓으면 공격의 전체 흐름이 됩니다. 아래는 이 사례의 실제 시각(UTC)입니다.</p>
+
+      <ol class="attack" id="case-timeline" aria-label="공격 타임라인">
+        <li class="phase-in"><span class="t">17:58:16.021</span><span class="dot"></span><span class="ev"><b>정상 사이트 방문</b> <span class="src">HTTP</span><span class="d">사용자가 vitaminsthatrock.com(64.20.39.203)에 접속합니다. 이 사이트는 해킹되어 있었습니다.</span></span></li>
+        <li class="phase-in"><span class="t">17:58:18.629</span><span class="dot"></span><span class="ev"><b>익스플로잇 킷으로 유도</b> <span class="src ids">Suricata</span><span class="d">응답에 심어진 코드가 브라우저를 악성 서버로 보냅니다. (ET EXPLOIT_KIT Possible Evil Redirector)</span></span></li>
+        <li class="phase-ex"><span class="t">17:58:19.396</span><span class="dot"></span><span class="ev"><b>랜딩 페이지 접속</b> <span class="src own">자체 탐지</span><span class="d">vclphjybj.ioxbpjgtqvwqfzmwhn.ga:13390, 난독화된 HTML 943바이트.</span></span></li>
+        <li class="phase-ex"><span class="t">17:58:21.970</span><span class="dot"></span><span class="ev"><b>Flash 익스플로잇 수신</b> <span class="src own">자체 탐지</span><span class="d">SWF 73.4 KB. 브라우저의 Flash 취약점을 공격합니다.</span></span></li>
+        <li class="phase-ex"><span class="t">17:58:25.216</span><span class="dot"></span><span class="ev"><b>암호화된 페이로드 수신</b> <span class="src own">자체 탐지</span><span class="d">307.1 KB, 엔트로피 8.00, <code>.html</code>로 위장. 랜섬웨어 본체로 보입니다.</span></span></li>
+        <li class="phase-c2"><span class="t">17:58:31.536</span><span class="dot"></span><span class="ev"><b>공인 IP 확인</b> <span class="src ids">Suricata</span><span class="d">ipinfo.io/ip에 접속해 감염 PC의 외부 IP를 확인합니다. 악성코드가 실행됐다는 신호입니다.</span></span></li>
+        <li class="phase-c2"><span class="t">17:58:33.321</span><span class="dot"></span><span class="ev"><b>C2 서버에 감염 보고</b> <span class="src ids">Suricata</span><span class="d">asecproteccion.com(72.55.148.19)에 암호화된 정보를 보냅니다. (AlphaCrypt CnC Beacon)</span></span></li>
+        <li class="phase-c2"><span class="t">17:59:15.095</span><span class="dot"></span><span class="ev"><b>두 번째 C2 통신</b> <span class="src ids">Suricata</span><span class="d">같은 서버로 다시 신호를 보냅니다. 파일 암호화가 진행 중일 가능성이 있습니다.</span></span></li>
+      </ol>
+      <div class="box note">
+        <span class="tag">핵심</span>
+        <p>정상 사이트에 접속한 지 <strong>약 17초 만에</strong> 랜섬웨어가 C2 서버에 감염 사실을 보고했습니다. 트래픽만 보면 사용자가 한 일은 사이트 하나를 연 것뿐입니다. 방문만으로 감염되는 이런 공격을 <strong>드라이브 바이 다운로드</strong>라고 합니다. 브라우저 플러그인(Flash, Java)을 최신으로 유지하거나 없애는 것이 왜 중요한지 보여 주는 사례입니다.</p>
+      </div>
+
+      <h4>⑥ 증거 확보: 추출 파일과 정상 잡음 구분</h4>
+      <figure>
+        <button class="shot" type="button" aria-label="추출 파일 크게 보기"><img src="images/06_extracted_files.png" alt="추출 파일 탭. Flash로 필터링한 SWF 파일 1건과 MD5, SHA1, SHA256 해시, 16진수 내용. 첫 바이트가 CWS로 시작한다." loading="lazy" width="1520" height="920"></button>
+        <figcaption><b>그림 9.</b> 추출한 Flash 파일. 확장자가 없어도 첫 바이트 <code>CWS</code>로 압축된 SWF임을 알아냅니다.</figcaption>
+      </figure>
+      <p>프로그램은 전송된 파일 212개를 모두 꺼내 해시를 계산합니다. 파일 이름이나 서버가 알려 준 형식(Content-Type)은 속일 수 있으므로, 파일 맨 앞의 <strong>매직 바이트</strong>로 실제 형식을 판별합니다. SHA256 해시를 VirusTotal 같은 위협 정보 서비스에서 검색하면 이 파일이 이미 알려진 악성코드인지 확인할 수 있습니다.</p>
+
+      <figure>
+        <button class="shot" type="button" aria-label="DNS 탭 크게 보기"><img src="images/08_dns.png" alt="DNS 탭. teredo.ipv6.microsoft.com, isatap.mshome.net 같은 Windows 기본 질의가 NXDOMAIN 응답과 함께 여러 번 나온다." loading="lazy" width="1520" height="920"></button>
+        <figcaption><b>그림 10.</b> DNS 질의 124건의 대부분은 Windows가 스스로 보내는 정상 질의입니다.</figcaption>
+      </figure>
+      <p>모든 트래픽이 수상한 것은 아닙니다. DNS 탭을 열면 <code>teredo.ipv6.microsoft.com</code>, <code>isatap.mshome.net</code> 같은 질의가 "존재하지 않는 도메인(NXDOMAIN)" 응답과 함께 수십 번 나옵니다. 이것은 Windows가 IPv6 기능을 찾느라 보내는 <strong>정상 잡음</strong>입니다. 입문자가 가장 많이 하는 실수가 이런 잡음을 공격으로 오해하는 것입니다. 이 프로그램은 잘 알려진 정상 도메인을 <code>DnsAllowList</code>로 제외해 오탐을 줄입니다.</p>
+
+      <h3 id="case-response">결론과 대응</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>단계</th><th>확인된 사실</th><th>찾아낸 주체</th></tr></thead>
+          <tbody>
+            <tr><td>유입</td><td>해킹된 정상 사이트 vitaminsthatrock.com이 익스플로잇 킷으로 유도</td><td><span class="src ids">Suricata</span></td></tr>
+            <tr><td>공격</td><td>랜딩 페이지 → Flash 익스플로잇 → 암호화된 페이로드(.html 위장)</td><td><span class="src own">자체 탐지</span></td></tr>
+            <tr><td>감염 후</td><td>공인 IP 확인 후 AlphaCrypt/TeslaCrypt 랜섬웨어 C2 통신</td><td><span class="src ids">Suricata</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>자체 엔진은 <em>공격의 흐름</em>을, Suricata는 <em>위협의 이름</em>을 찾았습니다. 어느 한쪽만으로는 전체 그림이 완성되지 않습니다. 실무에서도 여러 탐지 방식을 함께 쓰는 이유입니다.</p>
+      <h4>대응 권고</h4>
+      <ol>
+        <li><strong>격리:</strong> 감염 PC 192.168.137.239를 즉시 네트워크에서 분리합니다. 공유 폴더를 통해 다른 PC의 파일까지 암호화될 수 있습니다.</li>
+        <li><strong>차단:</strong> 익스플로잇 킷 서버(46.108.156.181, <code>*.ioxbpjgtqvwqfzmwhn.ga</code>)와 C2 서버(72.55.148.19, <code>asecproteccion.com</code>)를 방화벽과 DNS에서 차단합니다.</li>
+        <li><strong>확산 조사:</strong> 같은 IOC로 다른 PC의 로그와 트래픽을 검색합니다. 이 프로그램의 <strong>IOC 불러오기</strong>로 다른 캡처 파일을 검사할 수 있습니다.</li>
+        <li><strong>근본 원인 제거:</strong> 브라우저의 Flash 플러그인을 제거하거나 최신 버전으로 업데이트합니다(Suricata가 "Outdated Flash Version"도 경고했습니다).</li>
+        <li><strong>보고:</strong> <strong>HTML 보고서</strong> 버튼으로 탐지 근거·타임라인·파일 해시를 담은 보고서를 저장하고, 원본 PCAP의 SHA-256 값과 함께 보관합니다.</li>
+      </ol>
+    </section>
+
+    <!-- 실습 -->
+    <section class="chapter" id="practice">
+      <span class="chapter-no">실습</span>
+      <h2>직접 풀어 보기</h2>
+      <p>프로그램으로 실습 파일을 열고 아래 질문에 답해 보세요. 질문을 누르면 정답과 근거를 볼 수 있습니다.</p>
+
+      <details class="ex">
+        <summary>감염된 내부 PC의 IP 주소는 무엇이고, 어떻게 알 수 있나요?</summary>
+        <div class="a"><p><code>192.168.137.239</code>입니다. 대시보드의 상위 통신 IP 1위이고, 사설 대역(192.168.x.x)이며, 모든 심각 탐지의 대상(또는 출발지)이 이 주소입니다.</p></div>
+      </details>
+      <details class="ex">
+        <summary>사용자가 처음 접속한, 해킹된 정상 사이트는 어디인가요?</summary>
+        <div class="a"><p><code>vitaminsthatrock.com</code>(64.20.39.203)입니다. 랜딩 페이지 요청의 <code>Referer</code> 헤더와 Suricata의 <code>ET EXPLOIT_KIT Possible Evil Redirector</code> 경보가 이 사이트를 가리킵니다.</p></div>
+      </details>
+      <details class="ex">
+        <summary>307 KB 페이로드는 왜 HTML이 아니라고 판단할 수 있나요?</summary>
+        <div class="a"><p>파일 이름은 <code>…-handle-none.html</code>이지만 서버가 알려 준 형식은 <code>application/octet-stream</code>이고, 매직 바이트로 판별되는 형식이 없으며, 엔트로피가 8.00으로 최댓값입니다. 텍스트인 HTML은 엔트로피가 이렇게 높을 수 없으므로 암호화된 바이너리입니다.</p></div>
+      </details>
+      <details class="ex">
+        <summary>악성코드가 C2 서버보다 먼저 ipinfo.io에 접속한 이유는 무엇일까요?</summary>
+        <div class="a"><p>감염 PC의 <strong>공인 IP 주소</strong>를 알아내기 위해서입니다. 랜섬웨어는 피해자의 위치나 네트워크 정보를 C2 서버에 함께 보고하는 경우가 많습니다. 정상 프로그램은 이런 서비스를 거의 쓰지 않으므로 감염 직후의 좋은 단서가 됩니다.</p></div>
+      </details>
+      <details class="ex">
+        <summary>다른 PC를 조사하기 위한 IOC 목록을 만들어 보세요.</summary>
+        <div class="a">
+          <p>아래 내용을 텍스트 파일로 저장하고 <strong>IOC 불러오기</strong>로 다른 캡처를 검사할 수 있습니다.</p>
+<pre><code>46.108.156.181            # 익스플로잇 킷 서버
+ioxbpjgtqvwqfzmwhn[.]ga   # 익스플로잇 킷 도메인(하위 도메인 포함)
+72.55.148.19              # 랜섬웨어 C2
+asecproteccion[.]com      # 랜섬웨어 C2 도메인
+a5ef5b9fdae4f9c6edafd1b2ea6a6a67cdee4cee793841917996e3501b8adacc  # Flash 익스플로잇 SHA256
+387d6f4670bfd929e4b91fc715cb03c86ddf926dc9c39d783181467224b6edf9  # 암호화 페이로드 SHA256</code></pre>
+          <p>침해된 정상 사이트(64.20.39.203)는 차단보다 <strong>모니터링 대상</strong>으로 두는 것이 일반적입니다. 사이트 자체는 피해자이고, 운영자가 복구하면 다시 정상이 되기 때문입니다.</p>
+        </div>
+      </details>
+      <details class="ex">
+        <summary>DNS 탭의 teredo.ipv6.microsoft.com NXDOMAIN 수십 건은 DGA 공격일까요?</summary>
+        <div class="a"><p>아닙니다. 같은 이름을 반복해서 질의하는 Windows의 IPv6 전환 기능(Teredo)입니다. DGA는 매번 <strong>서로 다른</strong> 무작위 도메인을 질의하는 것이 특징입니다. 질의 이름이 다양한지, 같은지를 먼저 확인하세요.</p></div>
+      </details>
+    </section>
+
+    <!-- 용어 -->
+    <section class="chapter" id="glossary">
+      <span class="chapter-no">부록</span>
+      <h2>용어 정리</h2>
+      <dl class="terms">
+        <dt>세션</dt><dd>두 컴퓨터 사이의 연결 하나. 출발지 IP·포트와 목적지 IP·포트(5-tuple)로 구분합니다.</dd>
+        <dt>3-way 핸드셰이크</dt><dd>TCP 연결을 맺는 과정. SYN → SYN/ACK → ACK 세 번의 신호를 주고받습니다.</dd>
+        <dt>C2 (Command &amp; Control)</dt><dd>공격자가 감염된 PC에 명령을 내리고 정보를 받는 서버입니다.</dd>
+        <dt>비컨</dt><dd>악성코드가 C2 서버에 "살아 있다"고 주기적으로 보내는 신호입니다.</dd>
+        <dt>IOC</dt><dd>침해 지표(Indicator of Compromise). 악성 IP, 도메인, 파일 해시처럼 공격을 식별하는 단서입니다.</dd>
+        <dt>IDS</dt><dd>침입 탐지 시스템. Suricata, Snort가 대표적이며 알려진 공격 패턴(룰)과 트래픽을 비교합니다.</dd>
+        <dt>MITRE ATT&amp;CK</dt><dd>실제 공격 기법을 체계적으로 정리한 공개 지식 베이스. T1189(드라이브 바이 감염)처럼 번호로 부릅니다.</dd>
+        <dt>매직 바이트</dt><dd>파일 맨 앞에 있는 형식 표시. 실행 파일은 <code>MZ</code>, PDF는 <code>%PDF</code>, 압축된 Flash는 <code>CWS</code>로 시작합니다.</dd>
+        <dt>해시(SHA256)</dt><dd>파일 내용으로 계산한 고유한 값. 한 바이트만 달라도 완전히 바뀌므로 파일을 식별하는 지문으로 씁니다.</dd>
+        <dt>난독화</dt><dd>코드를 사람이 읽기 어렵게 일부러 뒤섞는 기법. 악성 스크립트가 분석과 탐지를 피하려고 사용합니다.</dd>
+        <dt>UTC</dt><dd>세계 표준시. 이 프로그램의 모든 시각은 UTC이며, 한국 시간은 UTC에 9시간을 더하면 됩니다.</dd>
+      </dl>
+    </section>
+
+    <footer>
+      <p>프로그램과 소스 코드: <a href="https://github.com/ngnicky-ai/pcap-forensics-analyzer" target="_blank" rel="noopener">github.com/ngnicky-ai/pcap-forensics-analyzer</a> · 실습 파일 출처: malware-traffic-analysis.net · 탐지 룰: Proofpoint ET Open</p>
+    </footer>
+  </main>
+</div>
+
+<dialog id="viewer" aria-label="화면 크게 보기">
+  <button type="button" id="viewer-close">닫기</button>
+  <img id="viewer-img" alt="">
+  <p id="viewer-cap"></p>
+</dialog>
+
+<script>
+(function () {
+  var dlg = document.getElementById('viewer');
+  var img = document.getElementById('viewer-img');
+  var cap = document.getElementById('viewer-cap');
+  if (!dlg || typeof dlg.showModal !== 'function') return;
+  document.querySelectorAll('figure button.shot').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var src = btn.querySelector('img');
+      var fc = btn.parentElement.querySelector('figcaption');
+      img.src = src.src;
+      img.alt = src.alt;
+      cap.textContent = fc ? fc.textContent : '';
+      dlg.showModal();
+    });
+  });
+  document.getElementById('viewer-close').addEventListener('click', function () { dlg.close(); });
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+})();
+</script>

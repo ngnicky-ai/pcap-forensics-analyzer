@@ -35,6 +35,8 @@ public sealed class DetectionSettings
     public double ExploitChainWindowSeconds { get; set; } = 120;
 
     public Ids.SuricataOptions Suricata { get; set; } = new();
+
+    public Capture.CaptureSettings Capture { get; set; } = new();
 }
 
 public sealed class PatternRule

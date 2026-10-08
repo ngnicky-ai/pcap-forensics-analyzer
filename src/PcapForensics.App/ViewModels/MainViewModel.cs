@@ -100,6 +100,7 @@ public sealed class MainViewModel : ObservableObject
     public string StatusText { get => _status; set => Set(ref _status, value); }
 
     public bool HasResult => _result is not null;
+    public PcapForensics.Core.Capture.CaptureSettings CaptureSettings => _analyzer.Settings.Capture;
     public string FileTitle => _result is null ? "" : $"{_result.FileName}  ·  {TimeFormat.Bytes(_result.FileSize)}";
     public string FileHash => _result?.FileSha256 ?? "";
     public string IocStatus => _analyzer.Iocs.Count == 0 ? "IOC 미적용" : $"IOC {_analyzer.Iocs.Count:N0}개 적용 ({Path.GetFileName(_analyzer.Iocs.SourcePath)})";
@@ -281,7 +282,8 @@ public sealed class MainViewModel : ObservableObject
         if (dlg.ShowDialog() == true) _ = OpenFileAsync(dlg.FileName);
     }
 
-    public async Task OpenFileAsync(string path)
+    /// <param name="note">분석 결과 경고 맨 앞에 붙일 설명(예: 실시간 모니터링 중지 사유).</param>
+    public async Task OpenFileAsync(string path, string? note = null)
     {
         if (IsBusy) return;
         IsBusy = true;
@@ -297,8 +299,10 @@ public sealed class MainViewModel : ObservableObject
         {
             var token = _cts.Token;
             var result = await Task.Run(() => _analyzer.Analyze(path, progress, token), token);
+            if (!string.IsNullOrEmpty(note)) result.Warnings.Insert(0, note);
             Apply(result);
-            StatusText = $"분석 완료: 패킷 {result.Packets.Count:N0}개, 세션 {result.Sessions.Count:N0}개, 탐지 {result.Findings.Count}건 ({result.AnalysisTime.TotalSeconds:F1}초)";
+            StatusText = $"분석 완료: 패킷 {result.Packets.Count:N0}개, 세션 {result.Sessions.Count:N0}개, 탐지 {result.Findings.Count}건 ({result.AnalysisTime.TotalSeconds:F1}초)" +
+                         (string.IsNullOrEmpty(note) ? "" : "  ·  " + note);
             SelectedTabIndex = result.Findings.Count > 0 ? TabFindings : 0;
             if (_analyzer.Settings.Suricata.AutoRun && SuricataRunner.FindExecutable(_analyzer.Settings.Suricata.ExecutablePath) is not null)
                 _suricataPending = true;
